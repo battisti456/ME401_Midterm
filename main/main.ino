@@ -37,7 +37,7 @@ void loop() {
   change_speed_for_x_y(0.2,0.2);
   update_speeds();
   
-  delay(5000);
+  delay(100);
 }
 
 StateMachineState get_state() {

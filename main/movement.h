@@ -49,16 +49,10 @@ void update_speeds() {
 double wheel_distance = 0.111;//measure, in meters
 double wheel_circumfrance = 0.067;//measure, in meters
 //double speed_mult = 0.00318;
-double speed_mult = 0.01;
+double speed_mult = 0.05;
 
 double a_max = 0.15;
-
-double s_from_speed(int sp) {//int servo values to arclength
-    return (double) sp/speed_mult/100*wheel_circumfrance;
-}
-int speed_from_s(double s) {//arclength to int servo values
-    return s/wheel_circumfrance*speed_mult*100;
-}
+double a_step = 0.1;
 
 void find_sr_sl_for_move(double dx, double dy, double a, double& sr, double& sl) {//SFDR
     double smx = dx/cos(a);
@@ -82,11 +76,9 @@ void change_speed_for_x_y(double x1, double y1) {
   Serial.println(a);
 
   if(abs(a) > a_max) {//need to actually figure out!!!!!!!!
-    double a_used = a_max -0.01;
-    double r = a_used/a;
-    double t = sqrt(dx*dx+dy*dy)*r;
-    double new_x1 = current.x+cos(a_used)*t;
-    double new_y1 = current.y+sin(a_used)*t;
+    double a_used = a/abs(a)*(a_max-0.1);
+    double new_x1 = current.x + a_step*cos(a_used);
+    double new_y1 = current.y + a_step*sin(a_used);
     change_speed_for_x_y(new_x1,new_y1);
     return;
   }
@@ -96,8 +88,19 @@ void change_speed_for_x_y(double x1, double y1) {
 
   find_sr_sl_for_move(dx,dy,a,sr,sl);
 
-  l_speed = speed_from_s(sl);//might need flipping sometimes
-  r_speed = speed_from_s(sr);
+  if(abs(sr) > abs(sl)) {
+    sr = sr/abs(sr);
+    sl = sl/abs(sl);
+  } else {
+    sr = sr/abs(sl);
+    sl = sl/abs(sl);
+  }
+  
+
+  l_speed = sr*100*speed_mult;
+  r_speed = sl*100*speed_mult;
+
+  
 }
 
 void set_current_pos(double x, double y, double a) {
