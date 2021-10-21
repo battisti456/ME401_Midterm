@@ -17,7 +17,7 @@ double x_conv = 0.001;//m per int
 double y_conv = 0.001;//m per int
 double a_conv = 0.001;//radians per int
 
-SFDRRobot driving_robot = SFDRRobot(LEFT_SERVO_PIN,RIGHT_SERVO_PIN,DRIVING_SERVO_MS_MIN,DRIVING_SERVO_MS_MAX,DRIVING_SERVO_SPEED,WHEEL_RADIUS,WHEEL_DISTANCE,MAX_ANGLE,TURN_DISTANCE);
+SFDRRobot driving_robot(LEFT_SERVO_PIN,RIGHT_SERVO_PIN,DRIVING_SERVO_MS_MIN,DRIVING_SERVO_MS_MAX,DRIVING_SERVO_SPEED,WHEEL_RADIUS,WHEEL_DISTANCE,DRIVE_UPDATE_MS,MAX_ANGLE,TURN_DISTANCE);
 
 void setup() {
   Serial.begin(115200);
@@ -33,9 +33,9 @@ void loop() {
   updateRobotPoseAndBallPositions();
   Serial.println("Get State");
   state = get_state();
-  
+
   RobotPose current_pose = getRobotPose(team_id);
-  //printRobotPose(current_pose);
+  printRobotPose(current_pose);
   driving_robot.update_position(x_conv*current_pose.x,y_conv*current_pose.y,a_conv*current_pose.theta);
   driving_robot.go_position(0.2,0.2);
   
