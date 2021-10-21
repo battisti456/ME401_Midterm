@@ -1,5 +1,6 @@
 #include "ME401_Radio.h"
 #include "movement.h"
+#include "config.h"
 
 enum StateMachineState {
   HEALTHY = 0,
@@ -16,12 +17,14 @@ double x_conv = 0.001;//m per int
 double y_conv = 0.001;//m per int
 double a_conv = 0.001;//radians per int
 
+SFDRRobot driving_robot = SFDRRobot(LEFT_SERVO_PIN,RIGHT_SERVO_PIN,DRIVING_SERVO_MS_MIN,DRIVING_SERVO_MS_MAX,DRIVING_SERVO_SPEED,WHEEL_RADIUS,WHEEL_DISTANCE,MAX_ANGLE,TURN_DISTANCE);
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Setting up radio.");
   setupRadio(team_id);
   Serial.println("Setting up driving");
-  setup_driving();
+  driving_robot.setup();
   Serial.println("Beggining loop");
 }
 
@@ -33,11 +36,10 @@ void loop() {
   
   RobotPose current_pose = getRobotPose(team_id);
   //printRobotPose(current_pose);
-  set_current_pos(x_conv*current_pose.x,y_conv*current_pose.y,a_conv*current_pose.theta);
-  change_speed_for_x_y(0.2,0.2);
-  update_speeds();
+  driving_robot.update_position(x_conv*current_pose.x,y_conv*current_pose.y,a_conv*current_pose.theta);
+  driving_robot.go_position(0.2,0.2);
   
-  delay(100);
+  delay(DRIVE_UPDATE_MS*4/5);
 }
 
 StateMachineState get_state() {
