@@ -22,7 +22,7 @@ public:
          coefficients[i] = c[i];
      }
  }
- void IRSensor::setup() {}
+void IRSensor::setup() {}
 int IRSensor::update(){
     return filter.AddValue(analogRead(sensor_pin));
 }

@@ -58,3 +58,7 @@ StateMachineState get_state() {
 int should_we_get_ball() {
   return 0;
 }
+
+uint32_t time_loop(uint32_t time) {
+  return (time+CORE_TICK_RATE/100);
+}
