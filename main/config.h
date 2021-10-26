@@ -9,13 +9,15 @@
 #define DRIVING_SERVO_MS_MAX 1.7
 #define WHEEL_RADIUS 0.0325
 #define WHEEL_DISTANCE 0.111
-#define MAX_ANGLE 0.78
-#define TURN_DISTANCE 0.1
 
 #define DRIVE_UPDATE_MS 500
 
 //ir sensors
 #define NUMBER_OF_COEFFICIENTS 3
+#define FILTER_LENGTH 5
+
+#define SENSOR_A_PIN A7//orange red brown
+#define SENSOR_B_PIN A8//blue green yellow
 
 #define IRSENSOR_UPDATE_MS 100
 

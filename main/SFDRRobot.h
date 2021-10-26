@@ -1,5 +1,6 @@
 #include <Servo.h>
 #include <math.h>
+#include "config.h"
 
 class SFDRRobot {
   private:
@@ -19,13 +20,16 @@ class SFDRRobot {
   double servo_speed = 0;//rad/s at max
   double wheel_radius = 0;//m
   double wheel_distance = 0;//m
-  double expected_run_time = 0;//ms, time run at a speed
-  double max_angle = 0;
-  double turn_distance = 0;
-
 
   double current_left_p = 0;
   double current_right_p = 0;
+
+  double x_dest = 0;
+  double y_dest = 0;
+  char mode_dest = 0;
+
+  double ball_x_offset = 0;
+  double ball_y_offset = 0;
 
   void set_servo(Servo& servo, double p) const;
   void global_to_local(double dx, double dy, double a, double& lx, double& ly) const;
@@ -34,20 +38,18 @@ class SFDRRobot {
   void p_for_lx_ly(double lx, double ly, double& lp, double& rp);
 
   public:
-  SFDRRobot(){}
-  SFDRRobot(int l_pin, int r_pin, double ms_min, double ms_max, double sp, double r, double d, double t, double max_a, double turn_d);
-
-  void setup();
+  void setup(int l_pin, int r_pin, double ms_min, double ms_max, double sp, double r, double d);
   void set_left(double p);
   void set_right(double p);
+  void set_destination(double x, double y, int mode);
 
   void update_position(double x, double y, double a);
   void predict_position(double dt, double& new_x, double& new_y, double& new_a) const;
-  void go_position(double x, double y);
+  void update_motors();
+  void set_destination(double x, double y, char mode);
 };
 
-
-SFDRRobot::SFDRRobot(int l_pin, int r_pin, double ms_min, double ms_max, double sp, double r, double d, double t, double max_a, double turn_d) {
+void SFDRRobot::setup(int l_pin, int r_pin, double ms_min, double ms_max, double sp, double r, double d) {
   left_pin = l_pin;
   right_pin = r_pin;
   servo_ms_min = ms_min;
@@ -55,11 +57,6 @@ SFDRRobot::SFDRRobot(int l_pin, int r_pin, double ms_min, double ms_max, double 
   servo_speed = sp;
   wheel_radius = r;
   wheel_distance= d;
-  expected_run_time = t;
-  max_angle = max_a;
-  turn_distance = turn_d;
-}
-void SFDRRobot::setup() {
   left.attach(left_pin);
   right.attach(right_pin);
 }
@@ -102,9 +99,6 @@ void SFDRRobot::local_to_global(double lx, double ly, double a, double& dx, doub
   global_to_local(lx,ly,-a,dx,dy);
 }
 void SFDRRobot::p_for_lx_ly(double lx, double ly, double& lp, double& rp) {
-  int other = lx < 0;
-  lx = abs(lx);
-  
   double a = atan2(ly,lx);
   double smx = lx/cos(a);
   double smy = ly/sin(a);
@@ -114,27 +108,24 @@ void SFDRRobot::p_for_lx_ly(double lx, double ly, double& lp, double& rp) {
   double sl = 2*sm-sr;
 
   //might give invalid p values, just hope we choose lx ly well
-  lp = sl/wheel_radius/servo_speed/expected_run_time*1000;
-  rp = sr/wheel_radius/servo_speed/expected_run_time*1000;
-
-  if(other){
-    double p = lp;
-    lp = rp;
-    rp = p;
-  }
+  lp = sl/wheel_radius/servo_speed/DRIVE_UPDATE_MS*1000;
+  rp = sr/wheel_radius/servo_speed/DRIVE_UPDATE_MS*1000;
 }
-void SFDRRobot::go_position(double x, double y) {
+void SFDRRobot::set_destination(double x, double y, char mode){
+  x_dest = x;
+  y_dest = y;
+  mode_dest = mode;
+}
+void SFDRRobot::update_motors() {
   double lx, ly;
-  global_to_local(x-current_x,y-current_y,current_a,lx,ly);
-  double a = atan2(ly,lx);
-  if(abs(a) > max_angle) {//choose new lx, ly
-    double used_angle = a/abs(a)*9/10*max_angle;
-    lx = cos(used_angle)*turn_distance;
-    ly = sin(used_angle)*turn_distance;
+  global_to_local(x_dest-current_x,y_dest-current_y,current_a,lx,ly);
+  if(mode_dest == 'g') {//get ball
+    lx += ball_x_offset;
+    ly += ball_y_offset;
   }
   double lp, rp;
   p_for_lx_ly(lx,ly,lp,rp);
-  if(abs(rp) > 1 && rp > lp) {//make sure possible, can only slow it down, so makes over expected time
+  if(abs(rp) > 1 && rp > lp) {//make sure possible, can only slow it down
     lp = lp/abs(rp);
     rp = rp/abs(rp);
   } else if (abs(lp) > 1) {
@@ -144,9 +135,9 @@ void SFDRRobot::go_position(double x, double y) {
   set_left(lp);
   set_right(rp);
   Serial.print("Going for (x,y) at (lx,ly) with (lp,rp): (");
-  Serial.print(x);
+  Serial.print(x_dest);
   Serial.print(",");
-  Serial.print(y);
+  Serial.print(y_dest);
   Serial.print(") at (");
   Serial.print(lx);
   Serial.print(",");

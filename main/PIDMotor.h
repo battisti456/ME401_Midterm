@@ -22,19 +22,19 @@ private:
     static volatile char last_A;
     static volatile char last_B;
 
-    volatile double position;
-
-    PID pid(&input,&output,&setpoint,1,0,0,DIRECT);
+    volatile int position = 0;
+ 
+    PID pid = PID(&input,&output,&setpoint,1,0,0,DIRECT);
 public:
     void setup(double p, double i, double d, int A, int B, int dir, int pwm, int rev_count);
     void update_position();
     void update_PID();
 
-    void set_PID(double p, double i, double d);
+    void set_tunings(double p, double i, double d);
 
     double get_angle() const;
     double set_angle(double a);
-}
+};
 
 void PIDMotor::setup(double p, double i, double d, int A, int B, int dir, int pwm, int rev_count) {
     set_tunings(p,i,d);
