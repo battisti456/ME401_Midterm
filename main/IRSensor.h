@@ -15,6 +15,9 @@ public:
     void update(int count);
     int get_i();
     double get_d();
+
+    void print_value_array() const;
+    void print_sorted_array() const;
 };
 void IRSensor::add_value(int value){
   for(int i = 0; i < FILTER_LENGTH-1;i++) {
@@ -25,7 +28,9 @@ void IRSensor::add_value(int value){
 void IRSensor::sort_array(){
   int value = 0;
   int hold = 0;
-  sorted_array[FILTER_LENGTH] = {0};
+  for(int i = 0; i < FILTER_LENGTH; i++) {
+    sorted_array[i] = 0;
+  }
   for(int i = 0; i < FILTER_LENGTH;i++) {
     value = value_array[i];
     for(int j = FILTER_LENGTH-1;j>= 0; j--) {
@@ -48,7 +53,7 @@ void IRSensor::setup(int pin,double c[NUMBER_OF_COEFFICIENTS]) {
      for(int i = 0; i < NUMBER_OF_COEFFICIENTS; i++) {
          coefficients[i] = c[i];
      }
-}
+} 
 void IRSensor::update(int count){
   if(count%IRSENSOR_UPDATE_MS == 0) {
     add_value(analogRead(sensor_pin));
@@ -62,9 +67,29 @@ double IRSensor::get_d(){
     int val = get_i();
     double rtn = 0;
     for(int i = 0; i < NUMBER_OF_COEFFICIENTS;i++) {
-        rtn += pow(coefficients[i]*val,i);
+        rtn += coefficients[i]*pow(val,i);
     }
     return rtn;
+}
+void IRSensor::print_value_array() const{
+  Serial.print("v[");
+  for(int i = 0; i < FILTER_LENGTH; i++) {
+    Serial.print(value_array[i]);
+    if(i != FILTER_LENGTH-1){
+      Serial.print(",");
+    }
+  }
+  Serial.println("]");
+}
+void IRSensor::print_sorted_array() const{
+  Serial.print("s[");
+  for(int i = 0; i < FILTER_LENGTH; i++) {
+    Serial.print(sorted_array[i]);
+    if(i != FILTER_LENGTH-1){
+      Serial.print(",");
+    }
+  }
+  Serial.println("]");
 }
 
 void test_sensor(IRSensor& sensor) {
@@ -78,6 +103,9 @@ void test_sensor(IRSensor& sensor) {
             last_val = val;
             Serial.println(val);
         }
-        delay(100);
+        //Serial.println(val);
+        //sensor.print_value_array();
+        //sensor.print_sorted_array();
+        delay(250);
     }
 }

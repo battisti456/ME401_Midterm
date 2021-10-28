@@ -24,25 +24,27 @@ int count = 0;
 SFDRRobot driving_robot;
 PIDMotor radar_motor;
 IRSensor sensor_A;
-//IRSensor sensor_B;
+IRSensor sensor_B;
 
 void setup() {
   Serial.begin(115200);
   attachCoreTimerService(time_loop);
 
-  double c[NUMBER_OF_COEFFICIENTS] = {0};
-  sensor_A.setup(SENSOR_A_PIN,c);
-  //sensor_B.setup(SENSOR_B_PIN,c);
-  /*
+  Serial.println("Setting up sensors");
+  double Ac[NUMBER_OF_COEFFICIENTS] = SENSOR_A_C;
+  sensor_A.setup(SENSOR_A_PIN,Ac);
+  double Bc[NUMBER_OF_COEFFICIENTS] = SENSOR_A_C;
+  sensor_B.setup(SENSOR_B_PIN,Bc);
+
   Serial.println("Setting up radio.");
   setupRadio(team_id);
   Serial.println("Setting up driving");
   driving_robot.setup(LEFT_SERVO_PIN,RIGHT_SERVO_PIN,DRIVING_SERVO_MS_MIN,DRIVING_SERVO_MS_MAX,DRIVING_SERVO_SPEED,WHEEL_RADIUS,WHEEL_DISTANCE);
   Serial.println("Beggining loop");
-  */
 }
 
 void loop() {
+  Serial.println("----------------------------------------------------------------------------------------");
   /*
   Serial.println("Update Robot Ball Positions");
   updateRobotPoseAndBallPositions();
@@ -56,7 +58,16 @@ void loop() {
   
   delay(DRIVE_UPDATE_MS*4/5);
   */
-  test_sensor(sensor_A);
+  Serial.println("Updating robot and ball positions");
+  updateRobotPoseAndBallPositions();
+  Serial.println("Getting current robot position");
+  RobotPose current_pose = getRobotPose(team_id);
+  //printRobotPose(current_pose);
+  Serial.println("Setting current position to SFDR");
+  driving_robot.set_position(x_conv*current_pose.x,y_conv*current_pose.y,a_conv*current_pose.theta);
+  test_SFDRRobot(driving_robot);
+  
+  delay(DRIVE_UPDATE_MS*3/5);
 }
 
 StateMachineState get_state() {
@@ -78,6 +89,7 @@ int should_we_get_ball() {
 
 uint32_t time_loop(uint32_t time) {
   count++;
+  int ms = millis();
   /*
   if(time%DRIVE_UPDATE_MS==0){
     updateRobotPoseAndBallPositions();
@@ -86,7 +98,9 @@ uint32_t time_loop(uint32_t time) {
     driving_robot.update_motors();
   }
   */
-  sensor_A.update(count);
+  sensor_A.update(ms);
+  sensor_B.update(ms);
+  driving_robot.update(ms);
   /*
   if(time%IRSENSOR_UPDATE_MS==0){
     sensor_A.update();
