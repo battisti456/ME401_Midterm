@@ -2,8 +2,12 @@
 #include <math.h>
 #include "config.h"
 
+#define DRIVE_UPDATE_MS 500
+
 class SFDRRobot {
-  private:
+  protected:
+  int on = 0;
+  
   double current_x = 0;
   double current_y = 0;
   double current_a = 0;
@@ -40,7 +44,7 @@ class SFDRRobot {
   void p_for_lx_ly(double lx, double ly, double& lp, double& rp);
 
   public:
-  void setup(int l_pin, int r_pin, double ms_min, double ms_max, double sp, double r, double d);
+  virtual void setup(int l_pin, int r_pin, double ms_min, double ms_max, double sp, double r, double d);
   void set_left(double p);
   void set_right(double p);
   void set_destination(double x, double y, int mode);
@@ -50,10 +54,12 @@ class SFDRRobot {
   void update_motors();
   void set_destination(double x, double y, char mode);
 
-  void update(int ms);
+  virtual void update(int ms);
 
   double get_d() const;
   void report_heading() const;
+
+  double point_distance(double x1, double y1, double x2, double y2) const;
 };
 
 void SFDRRobot::setup(int l_pin, int r_pin, double ms_min, double ms_max, double sp, double r, double d) {
@@ -73,11 +79,11 @@ void SFDRRobot::set_servo(Servo& servo, double p) const {
   Serial.println(1000*((servo_ms_max-servo_ms_min)*(1+p)/2+servo_ms_min));
 }
 void SFDRRobot::set_left(double p) {
-  set_servo(left,p);
+  set_servo(left,p*on);
   current_left_p = p;
 }
 void SFDRRobot::set_right(double p) {
-  set_servo(right,-p);
+  set_servo(right,-p*on);
   current_right_p = p;
 }
 void SFDRRobot::set_position(double x, double y, double a) {
@@ -167,7 +173,13 @@ void SFDRRobot::report_heading() const {
   double lx, ly;
   global_to_local(x_dest-current_x,y_dest-current_y,current_a,lx,ly);
   double a = atan2(ly,lx);
-  Serial.print("SDFR:At x = ");
+  Serial.print("SDFR:O");
+  if(on){
+    Serial.print("n");
+  } else {
+    Serial.print("ff");
+  }
+  Serial.print(" at x = ");
   Serial.print(current_x);
   Serial.print(", y = ");
   Serial.print(current_y);
@@ -189,7 +201,10 @@ void SFDRRobot::report_heading() const {
   Serial.println(current_right_p);
 }
 double SFDRRobot::get_d() const{
-  return sqrt(pow(x_dest-current_x,2)+pow(y_dest-current_y,2));
+  return point_distance(current_x,current_y,x_dest,y_dest);
+}
+double SFDRRobot::point_distance(double x1, double y1, double x2, double y2) const {
+  return sqrt(pow(x1-x2,2)+pow(y1-y2,2));
 }
 void test_SFDRRobot(SFDRRobot& driving_robot) {
   double d = driving_robot.get_d();
