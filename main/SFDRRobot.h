@@ -1,8 +1,17 @@
 #include <Servo.h>
 #include <math.h>
-#include "config.h"
 
 #define DRIVE_UPDATE_MS 500
+#define TURN_POWER 0.5
+#define LEFT_SERVO_PIN 31
+#define RIGHT_SERVO_PIN 30
+#define DRIVING_SERVO_SPEED 13.333
+#define DRIVING_SERVO_MS_MIN 1.3
+#define DRIVING_SERVO_MS_MAX 1.7
+#define WHEEL_RADIUS 0.0325
+#define WHEEL_DISTANCE 0.111
+#define BALL_X_OFFSET 0
+#define BALL_Y_OFFSET 0
 
 class SFDRRobot {
   protected:
@@ -15,25 +24,16 @@ class SFDRRobot {
   Servo left;
   Servo right;
 
-  int left_pin = 0;
-  int right_pin = 0;
-
-  double servo_ms_min = 0;
-  double servo_ms_max = 0;
-
-  double servo_speed = 0;//rad/s at max
-  double wheel_radius = 0;//m
-  double wheel_distance = 0;//m
-
   double current_left_p = 0;
   double current_right_p = 0;
 
   double x_dest = 2;
   double y_dest = 2;
   char mode_dest = 0;
-
-  double ball_x_offset = 0;
-  double ball_y_offset = 0;
+  //'f' for only go forward
+  //'b' for only go backward
+  //'g' for get ball
+  //'a' for any direction
 
   int last_position_update_ms = 0;
 
@@ -44,7 +44,7 @@ class SFDRRobot {
   void p_for_lx_ly(double lx, double ly, double& lp, double& rp);
 
   public:
-  virtual void setup(int l_pin, int r_pin, double ms_min, double ms_max, double sp, double r, double d);
+  virtual void setup();
   void set_left(double p);
   void set_right(double p);
   void set_destination(double x, double y, int mode);
@@ -52,6 +52,8 @@ class SFDRRobot {
   void set_position(double x, double y, double a);
   void predict_position(double dt, double& new_x, double& new_y, double& new_a) const;
   void update_motors();
+  void update_motors_left_turn();
+  void update_motors_right_turn();
   void set_destination(double x, double y, char mode);
 
   virtual void update(int ms);
@@ -62,21 +64,13 @@ class SFDRRobot {
   double point_distance(double x1, double y1, double x2, double y2) const;
 };
 
-void SFDRRobot::setup(int l_pin, int r_pin, double ms_min, double ms_max, double sp, double r, double d) {
-  left_pin = l_pin;
-  right_pin = r_pin;
-  servo_ms_min = ms_min;
-  servo_ms_max = ms_max;
-  servo_speed = sp;
-  wheel_radius = r;
-  wheel_distance= d;
-  left.attach(left_pin);
-  right.attach(right_pin);
+void SFDRRobot::setup() {
+  left.attach(LEFT_SERVO_PIN);
+  right.attach(RIGHT_SERVO_PIN);
 }
 void SFDRRobot::set_servo(Servo& servo, double p) const {
   //p between -1 and 1
-  servo.writeMicroseconds(1000*((servo_ms_max-servo_ms_min)*(1+p)/2+servo_ms_min));
-  Serial.println(1000*((servo_ms_max-servo_ms_min)*(1+p)/2+servo_ms_min));
+  servo.writeMicroseconds(1000*((DRIVING_SERVO_MS_MAX-DRIVING_SERVO_MS_MIN)*(1+p)/2+DRIVING_SERVO_MS_MIN));
 }
 void SFDRRobot::set_left(double p) {
   set_servo(left,p*on);
@@ -93,10 +87,10 @@ void SFDRRobot::set_position(double x, double y, double a) {
   last_position_update_ms = millis();
 }
 void SFDRRobot::predict_position(double dt, double& new_x, double& new_y, double& new_a) const {//only works in deafault driving mode
-  double sr = current_left_p*servo_speed*dt*wheel_radius;
-  double sl = current_right_p*servo_speed*dt*wheel_radius;
+  double sr = current_left_p*DRIVING_SERVO_SPEED*dt*WHEEL_RADIUS;
+  double sl = current_right_p*DRIVING_SERVO_SPEED*dt*WHEEL_RADIUS;
   double sm = (sr+sl)/2;
-  double a = (sr-sl)/wheel_distance;
+  double a = (sr-sl)/WHEEL_DISTANCE;
 
   double dx = sm*cos(a);
   double dy = sm*sin(a);
@@ -126,7 +120,7 @@ void SFDRRobot::p_for_lx_ly(double lx, double ly, double& lp, double& rp) {
   double smy = ly/sin(a);
   double sm = (smx+smy)/2;//so no direction preference
 
-  double sr = sm+wheel_distance*a;
+  double sr = sm+WHEEL_DISTANCE*a;
   double sl = 2*sm-sr;
 
   //might give invalid p values, just hope we choose lx ly well
@@ -139,33 +133,65 @@ void SFDRRobot::set_destination(double x, double y, char mode){
   y_dest = y;
   mode_dest = mode;
 }
+void SFDRRobot::update_motors_left_turn(){
+  set_left(-TURN_POWER);
+  set_right(TURN_POWER);
+}
+void SFDRRobot::update_motors_right_turn(){
+  set_left(TURN_POWER);
+  set_right(-TURN_POWER);
+}
 void SFDRRobot::update_motors() {
+  int sign_lx = 1;
   double lx, ly;
   global_to_local(x_dest-current_x,y_dest-current_y,current_a,lx,ly);
   double r = 0.1/get_d();
   lx = lx*r;
   ly= ly*r;
   if(mode_dest == 'g') {//get ball
-    lx += ball_x_offset;
-    ly += ball_y_offset;
+    lx += BALL_X_OFFSET;
+    ly += BALL_Y_OFFSET;
   }
-  double lp, rp;
-  
-  int sign_lx = lx/abs(lx);
-  lx = abs(lx);
+  if(mode_dest == 'g' || mode_dest == 'f') {//only go forward
+    if (lx < 0) {
+      if(ly > 0 ) {
+        update_motors_left_turn();
+      } else {
+        update_motors_right_turn();
+      }
+      return;//turn procedure
+    }
+  } else if (mode_dest == 'b') {//only go backward
+    if (lx > 0) {
+      if(ly > 0) {
+        update_motors_right_turn();
+      } else {
+        update_motors_left_turn();
+      }
+      return;//turn procedure
+    } else {
+      lx = abs(lx);
+      sign_lx = -1;
+    }
+  } else if (mode_dest = 'a') {
+    sign_lx = lx/abs(lx);
+    lx = abs(lx);
+  }
 
+  double lp, rp;
   p_for_lx_ly(lx,ly,lp,rp);
 
   lp = lp*sign_lx;
   rp = rp*sign_lx;
   
-  if(abs(rp) > abs(lp)) {//make sure possible, can only slow it down
+  if(abs(rp) > abs(lp)) {//power correction
     lp = lp/abs(rp);
     rp = rp/abs(rp);
   } else {
     rp = rp/abs(lp);
     lp = lp/abs(lp);
   }
+  
   set_left(lp);
   set_right(rp);
 }

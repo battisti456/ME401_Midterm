@@ -1,5 +1,6 @@
 #include "SFDRRobot.h"
 #include "ME401_Radio.h"
+#include "Radar.h"
 
 #define TEAM_ID 22
 
@@ -17,8 +18,10 @@ class RadioRobot: public SFDRRobot {
   private:
   RobotPose current_pose;
   StateMachineState current_state = HEALING;
+  Radar radar;
   public:
-  void setup(int l_pin, int r_pin, double ms_min, double ms_max, double sp, double r, double d);
+  void setup();
+  void update(int ms);
   void run();
 
   void update_state();
@@ -32,8 +35,8 @@ class RadioRobot: public SFDRRobot {
   void find_closest_zombie(double x, double y, double& min_d, int& min_i) const;
 };
 
-void RadioRobot::setup(int l_pin, int r_pin, double ms_min, double ms_max, double sp, double r, double d){
-  SFDRRobot::setup(l_pin,r_pin,ms_min,ms_max,sp,r,d);
+void RadioRobot::setup(){
+  SFDRRobot::setup();
   setupRadio(TEAM_ID);
 }
 void RadioRobot::run() {
@@ -84,15 +87,14 @@ void RadioRobot::healthy_behavior() {
 void RadioRobot::zombie_behavior() {
   
 }
-void RadioRobot::healing_behavior() {
+void RadioRobot::healing_behavior() {//need to ttest, but on board set to heal and see if it follows nearest zombie on a stick
   double d;
   int i;
   find_closest_zombie(current_x,current_y,d,i);
   if(i == -1) {//no zombies
     on = 0;
   } else {
-    x_dest = robotPoses[i].x;
-    y_dest = robotPoses[i].y;
+    set_destination(robotPoses[i].x,robotPoses[i].y,'a');
     Serial.print("Hunting zombie with ID# ");
     Serial.println(robotPoses[i].ID);
   }
@@ -126,4 +128,7 @@ void RadioRobot::find_closest_zombie(double x, double y, double& min_d, int& min
       }
     }
   }
+}
+void RadioRobot::update(int ms) {
+  radar.update(ms);
 }

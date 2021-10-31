@@ -1,4 +1,10 @@
-#include "config.h"
+#ifndef IRSENSOR
+#define IRSENSOR
+
+#define NUMBER_OF_COEFFICIENTS 9
+#define FILTER_LENGTH 50
+#define IRSENSOR_UPDATE_MS 100
+
 class IRSensor {
 private:
     int sensor_pin = 0;
@@ -109,3 +115,4 @@ void test_sensor(IRSensor& sensor) {
         delay(250);
     }
 }
+#endif

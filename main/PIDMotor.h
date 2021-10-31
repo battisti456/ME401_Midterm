@@ -1,19 +1,20 @@
-/*
 #include <SoftPWMServo.h>
 #include <PID_v1.h>
-#include "config.h"
+
+#define PIN_A 2
+#define PIN_B 20
+#define DIR_PIN 4
+#define PWM_PIN 3
+#define COUNTS_PER_REVOLUTION 2800
+#define KP 1
+#define KI 0
+#define KD 0
+
+#define PIDMOTOR_POSITION_UPDATE_MS 1
+#define PIDMOTOR_PID_UPDATE_MS 100
 
 class PIDMotor {
 private:
-    int A_pin = 0;
-    int B_pin = 0;
-    int dir_pin = 0;
-    int pwm_pin = 0;
-
-    double kp = 0;
-    double ki = 0;
-    double kd = 0;
-
     double input = 0;
     double output = 0;
     double setpoint = 0;
@@ -27,33 +28,37 @@ private:
  
     PID pid = PID(&input,&output,&setpoint,1,0,0,DIRECT);
 public:
-    void setup(double p, double i, double d, int A, int B, int dir, int pwm, int rev_count);
+    void setup();
     void update_position();
     void update_PID();
+    void update(int ms);
 
     void set_tunings(double p, double i, double d);
 
     double get_angle() const;
     double set_angle(double a);
+
+    void set_position(double a);
 };
 
-void PIDMotor::setup(double p, double i, double d, int A, int B, int dir, int pwm, int rev_count) {
-    set_tunings(p,i,d);
-    A_pin = A;
-    B_pin = B;
-    dir_pin = dir;
-    pwm_pin = pwm;
-    r_per_count = 2*3.141592653/rev_count;
+void PIDMotor::setup() {
+    set_tunings(KP,KI,KD);
+    r_per_count = 2*3.141592653/COUNTS_PER_REVOLUTION;
 }
 void PIDMotor::set_tunings(double p, double i, double d){
-    kp = p;
-    ki = i;
-    kd = d;
-    pid.SetTunings(kp,ki,kd);
+    pid.SetTunings(p,i,d);
+}
+void PIDMotor::update(int ms) {
+  if(ms % PIDMOTOR_POSITION_UPDATE_MS == 0) {
+    update_position();
+  }
+  if(ms % PIDMOTOR_PID_UPDATE_MS ==0) {
+    update_PID();
+  }
 }
 void PIDMotor::update_position() {
-    char new_A = digitalRead(A_pin);
-    char new_B = digitalRead(B_pin);
+    char new_A = digitalRead(PIN_A);
+    char new_B = digitalRead(PIN_B);
 
     position += (new_A^last_B)-(last_A^new_B);
 
@@ -63,14 +68,17 @@ void PIDMotor::update_position() {
 void PIDMotor::update_PID() {
     input = get_angle();
     pid.Compute();
-    digitalWrite(dir_pin,output < 0);
-    SoftPWMServoPWMWrite(3,abs(output));
+    digitalWrite(DIR_PIN,output < 0);
+    SoftPWMServoPWMWrite(PWM_PIN,abs(output));
 }
 double PIDMotor::get_angle() const {
     return r_per_count*position;
 }
 double PIDMotor::set_angle(double a) {
     setpoint = a;
+}
+void PIDMotor::set_position(double a){
+  position = (int) a/r_per_count;
 }
 
 void test_motor() {
@@ -81,7 +89,7 @@ void test_motor() {
     int pos = 0;
     double pos_angle = 1.57079632679;
     int stable = 1;
-    motor.setup(p,0,0,PIN_A,PIN_B,DIR_PIN,PWM_PIN,COUNTS_PER_REVOLUTION);
+    motor.setup();
     motor.set_angle(0);
     delay(settle_time);
     while(stable) {
@@ -107,4 +115,3 @@ void test_motor() {
     }
 
 }
-*/

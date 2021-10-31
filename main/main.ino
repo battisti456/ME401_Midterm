@@ -1,6 +1,5 @@
 #include "config.h"
 #include "IRSensor.h"
-#include "PIDMotor.h"
 #include "RadioRobot.h"
 
 RadioRobot rr;
@@ -17,19 +16,19 @@ void setup() {
   sensor_B.setup(SENSOR_B_PIN,Bc);
 
   Serial.println("Setting up radio robot");
-  rr.setup(LEFT_SERVO_PIN,RIGHT_SERVO_PIN,DRIVING_SERVO_MS_MIN,DRIVING_SERVO_MS_MAX,DRIVING_SERVO_SPEED,WHEEL_RADIUS,WHEEL_DISTANCE);
+  rr.setup();
   Serial.println("Beggining loop");
 
 
   attachCoreTimerService(time_loop);//last
 }
 
-void loop() {
+void loop() {//code intensive, not time sensitive
   Serial.println("Main loop executing");
   rr.run();
 }
 
-uint32_t time_loop(uint32_t time) {
+uint32_t time_loop(uint32_t time) {//time sensitive, low code impact
   int ms = millis();
 
   sensor_A.update(ms);
