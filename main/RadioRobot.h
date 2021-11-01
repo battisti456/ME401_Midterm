@@ -34,6 +34,8 @@ class RadioRobot: public SFDRRobot {
 
   void find_closest_ball(double x, double y, double& min_d, int& min_i) const;
   void find_closest_zombie(double x, double y, double& min_d, int& min_i) const;
+
+  double con(int val) const;
 };
 
 void RadioRobot::setup(){
@@ -44,15 +46,16 @@ void RadioRobot::run() {
   //update radio info
   updateRobotPoseAndBallPositions();
   current_pose = getRobotPose(TEAM_ID);
+  printRobotPose(current_pose);
   //update_state();
   on = current_pose.valid;
 
   //update position info
   if (current_state == ZOMBIE) {//cannot use radio posiitoning
-    predict_position((double) (last_position_update_ms-millis())/1000,current_x,current_y,current_a);
+    predict_position(con(last_position_update_ms-millis()),current_x,current_y,current_a);
     last_position_update_ms = millis();
   } else {//can use radio positioning
-    set_position(current_pose.x/1000,current_pose.y/1000,current_pose.theta/1000);
+    set_position(con(current_pose.x),con(current_pose.y), con(current_pose.theta));
   }
   
   //update intented behavior
@@ -88,7 +91,7 @@ void RadioRobot::healthy_behavior() {
   int index = 0;
   find_closest_ball(current_x,current_y,d,index);
   if(d<HEALTHY_MOVEMENT_DISTANCE) {//go for ball no matter what
-    set_destination(ballPositions[index].x,ballPositions[index].y,'g');
+    set_destination(con(ballPositions[index].x),con(ballPositions[index].y),'g');
   } else {//go for one of the BALL_RAYS least dangerous positions out of NUM_HEALTHY_RAYS which is closest to a ball
     double zombie_d[BALL_RAYS] = {0};
     double x_vals[BALL_RAYS] = {0};
@@ -130,14 +133,14 @@ void RadioRobot::healthy_behavior() {
 void RadioRobot::zombie_behavior() {
   
 }
-void RadioRobot::healing_behavior() {//need to ttest, but on board set to heal and see if it follows nearest zombie on a stick
+void RadioRobot::healing_behavior() {//need to test, but on board set to heal and see if it follows nearest zombie on a stick
   double d;
   int i;
   find_closest_zombie(current_x,current_y,d,i);
   if(i == -1) {//no zombies
     on = 0;
   } else {
-    set_destination(robotPoses[i].x,robotPoses[i].y,'a');
+    set_destination(con(robotPoses[i].x),con(robotPoses[i].y),'a');
     Serial.print("Hunting zombie with ID# ");
     Serial.println(robotPoses[i].ID);
   }
@@ -148,7 +151,7 @@ void RadioRobot::find_closest_ball(double x, double y, double& min_d, int& min_i
   min_i = -1;
   double d= 0;
   for(int i = 0; i < numBalls; i++) {
-    d = point_distance(x,y,ballPositions[i].x/1000,ballPositions[i].y/1000);
+    d = point_distance(x,y,con(ballPositions[i].x),con(ballPositions[i].y));
     if(d < min_d) {
       min_d = d;
       min_i = i; 
@@ -159,10 +162,10 @@ void RadioRobot::find_closest_zombie(double x, double y, double& min_d, int& min
   min_d = 100;
   min_i = -1;
   double d = 0;
-  for(int i = 0; i < numRobots; i++) {
-    printRobotPose(robotPoses[i]);
-    if(robotPoses[i].zombie && robotPoses[i].ID != TEAM_ID) {//if zombie and not me (just in case wierdness)
-      d = point_distance(x,y,robotPoses[i].x/1000,robotPoses[i].y/1000);
+  for(int i = 0; i < NUM_ROBOTS; i++) {
+    if(robotPoses[i].zombie && robotPoses[i].ID != TEAM_ID && robotPoses[i].valid) {//if zombie and not me (just in case wierdness)
+      printRobotPose(robotPoses[i]);
+      d = point_distance(x,y,con(robotPoses[i].x),con(robotPoses[i].y));
       Serial.println(i);
       Serial.println(d);
       if (d < min_d) {
@@ -174,4 +177,7 @@ void RadioRobot::find_closest_zombie(double x, double y, double& min_d, int& min
 }
 void RadioRobot::update(int ms) {
   //radar.update(ms);
+}
+double RadioRobot::con(int val) const {
+  return (double) val/1000;
 }

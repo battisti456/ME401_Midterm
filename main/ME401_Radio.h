@@ -79,14 +79,7 @@ int getNumRobots()
 RobotPose getRobotPose (int robotID)
 {
   RobotPose retval;  
-  for(int i = 0; i < NUM_ROBOTS; i++) {
-    if(robotPoses[i].ID == robotID) {
-      retval = robotPoses[robotID];
-      return retval;
-    }
-  }
-  retval.ID = robotID;
-  retval.valid = false;
+  retval = robotPoses[robotID];
   return retval;
 }
 
@@ -241,13 +234,13 @@ void updateRobotPoseAndBallPositions (void)
     int16_t  H = convert_bytes_to_int16(&lbuf[bidx + 10]);
 
     //note:: changed ID index to i, cause ID seemed redundant
-    robotPoses[i].valid = true;
-    robotPoses[i].ID = ID;
-    robotPoses[i].x = X;
-    robotPoses[i].y = Y;
-    robotPoses[i].theta = R;    
-    robotPoses[i].zombie = Z;    
-    robotPoses[i].healing = H;    
+    robotPoses[ID].valid = true;
+    robotPoses[ID].ID = ID;
+    robotPoses[ID].x = X;
+    robotPoses[ID].y = Y;
+    robotPoses[ID].theta = R;    
+    robotPoses[ID].zombie = Z;    
+    robotPoses[ID].healing = H;    
   }
 
   int nidx = start_offset + 2 + numRobots*12;
