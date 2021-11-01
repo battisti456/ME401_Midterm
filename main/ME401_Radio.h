@@ -79,7 +79,14 @@ int getNumRobots()
 RobotPose getRobotPose (int robotID)
 {
   RobotPose retval;  
-  retval = robotPoses[robotID];
+  for(int i = 0; i < NUM_ROBOTS; i++) {
+    if(robotPoses[i].ID == robotID) {
+      retval = robotPoses[robotID];
+      return retval;
+    }
+  }
+  retval.ID = robotID;
+  retval.valid = false;
   return retval;
 }
 
