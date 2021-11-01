@@ -233,13 +233,14 @@ void updateRobotPoseAndBallPositions (void)
     int16_t  Z = convert_bytes_to_int16(&lbuf[bidx + 8]);
     int16_t  H = convert_bytes_to_int16(&lbuf[bidx + 10]);
 
-    robotPoses[ID].valid = true;
-    robotPoses[ID].ID = ID;
-    robotPoses[ID].x = X;
-    robotPoses[ID].y = Y;
-    robotPoses[ID].theta = R;    
-    robotPoses[ID].zombie = Z;    
-    robotPoses[ID].healing = H;    
+    //note:: changed ID index to i, cause ID seemed redundant
+    robotPoses[i].valid = true;
+    robotPoses[i].ID = ID;
+    robotPoses[i].x = X;
+    robotPoses[i].y = Y;
+    robotPoses[i].theta = R;    
+    robotPoses[i].zombie = Z;    
+    robotPoses[i].healing = H;    
   }
 
   int nidx = start_offset + 2 + numRobots*12;
