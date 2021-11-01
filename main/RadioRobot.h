@@ -6,6 +6,7 @@
 
 #define NUM_HEALTHY_RAYS 20
 #define HEALTHY_MOVEMENT_DISTANCE 0.2
+#define BALL_RAYS 3
 
 enum StateMachineState {
   HEALTHY = 0,
@@ -18,7 +19,7 @@ class RadioRobot: public SFDRRobot {
   private:
   RobotPose current_pose;
   StateMachineState current_state = HEALING;
-  Radar radar;
+  //Radar radar;
   public:
   void setup();
   void update(int ms);
@@ -67,6 +68,7 @@ void RadioRobot::update_state() {
   current_state = (StateMachineState) (current_pose.zombie + current_pose.healing*2);
 }
 void RadioRobot::update_behavior() {
+  on = 1;
   switch(current_state) {
     case HEALTHY://hunting balls while avoiding zombies.
       healthy_behavior();
@@ -82,7 +84,48 @@ void RadioRobot::update_behavior() {
   }
 }
 void RadioRobot::healthy_behavior() {
+  double d = 0;
+  int index = 0;
+  find_closest_ball(current_x,current_y,d,index);
+  if(d<HEALTHY_MOVEMENT_DISTANCE) {//go for ball no matter what
+    set_destination(ballPositions[index].x,ballPositions[index].y,'g');
+  } else {//go for one of the BALL_RAYS least dangerous positions out of NUM_HEALTHY_RAYS which is closest to a ball
+    double zombie_d[BALL_RAYS] = {0};
+    double x_vals[BALL_RAYS] = {0};
+    double y_vals[BALL_RAYS] = {0};
   
+    double x = 0;
+    double y = 0;
+    for(int i  = 0; i < NUM_HEALTHY_RAYS; i++) {//finding BALL_RAYS least dangerous positions
+      x = current_x+HEALTHY_MOVEMENT_DISTANCE*cos(current_a+2*3.14159/NUM_HEALTHY_RAYS*i);
+      y = current_y+HEALTHY_MOVEMENT_DISTANCE*sin(current_a+2*3.14159/NUM_HEALTHY_RAYS*i);
+      find_closest_zombie(x,y,d,index);
+      for(int j = 0; j < BALL_RAYS; j++) {//find furthest points from zombies
+        if(d > zombie_d[i]) {
+          for(int k = BALL_RAYS -2; k >= i; k--) {
+            zombie_d[k+1] = zombie_d[k];
+            x_vals[k+1] = x_vals[k];
+            y_vals[k+1] = y_vals[k];
+          }
+          x_vals[i] = x;
+          y_vals[i] = y;
+          zombie_d[i] = d;
+        }
+      }
+    }
+  
+    double min_d = 10;//findin ray with closest ball
+    for(int i = 0; i < BALL_RAYS; i++) {
+      find_closest_ball(x_vals[i],y_vals[i],d,index);
+      if( d < min_d) {
+        min_d = d;
+        x = x_vals[i];
+        y = y_vals[i];
+      }
+    }
+    
+    set_destination(x,y,'a');
+  }
 }
 void RadioRobot::zombie_behavior() {
   
@@ -130,5 +173,5 @@ void RadioRobot::find_closest_zombie(double x, double y, double& min_d, int& min
   }
 }
 void RadioRobot::update(int ms) {
-  radar.update(ms);
+  //radar.update(ms);
 }

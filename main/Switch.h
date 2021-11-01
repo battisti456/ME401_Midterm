@@ -1,3 +1,4 @@
+/*
 #ifndef SWITCH
 #define SWITCH
 
@@ -18,3 +19,4 @@ int Switch::get_val() const {
 }
 
 #endif
+*/

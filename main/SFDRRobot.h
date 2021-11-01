@@ -73,11 +73,11 @@ void SFDRRobot::set_servo(Servo& servo, double p) const {
   servo.writeMicroseconds(1000*((DRIVING_SERVO_MS_MAX-DRIVING_SERVO_MS_MIN)*(1+p)/2+DRIVING_SERVO_MS_MIN));
 }
 void SFDRRobot::set_left(double p) {
-  set_servo(left,p*on);
+  set_servo(left,p);
   current_left_p = p;
 }
 void SFDRRobot::set_right(double p) {
-  set_servo(right,-p*on);
+  set_servo(right,-p);
   current_right_p = p;
 }
 void SFDRRobot::set_position(double x, double y, double a) {
