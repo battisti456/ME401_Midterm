@@ -24,6 +24,8 @@
 #define CORRECTION_TIME_MS 100
 #define CORRECTION_POWER 0.25
 
+#define COLLECTOR_POWER 0.25
+
 enum StateMachineState {
   HEALTHY = 0,
   ZOMBIE = 1,
@@ -38,6 +40,10 @@ class RadioRobot: public SFDRRobot {
   //Radar radar;
 
   Switch tl_coll, tr_coll, bl_coll, br_coll;
+
+  Servo collector;
+
+  Radar radar;
   public:
   void setup();
   void update(int ms);
@@ -56,7 +62,13 @@ class RadioRobot: public SFDRRobot {
   void find_closest_zombie(double x, double y, double& min_d, int& min_i) const;
 
   double con(int val) const;
+
+  void set_collector(double p);
 };
+
+void RadioRobot::set_collector(double p) {
+  set_servo(collector,p);
+}
 
 void RadioRobot::setup(){
   SFDRRobot::setup();
@@ -75,7 +87,6 @@ void RadioRobot::run() {
   //reverse from collisions. couldn't get interrupt to work, but that wasn't mentioned in tthe requirements
   collision_behavior();
   //update_state();
-  on = current_pose.valid;
 
   //update position info
   if (current_state == ZOMBIE) {//cannot use radio posiitoning
@@ -117,25 +128,27 @@ void RadioRobot::collision_behavior() {
     }
     set_left(pl);
     set_right(pr);
-    delay(CORRECTION_TIME);
+    delay(CORRECTION_TIME_MS);
   }
 }
 void RadioRobot::update_state() {
   current_state = (StateMachineState) (current_pose.zombie + current_pose.healing*2);
 }
 void RadioRobot::update_behavior() {
-  on = 1;
   switch(current_state) {
     case HEALTHY://hunting balls while avoiding zombies.
+      set_collector(COLLECTOR_POWER);
       healthy_behavior();
     break;
     case ZOMBIE://hunt for healthy
+      set_collector(0);
       zombie_behavior();
     break;
     case HEALING://seek out nearest zombie
+      set_collector(0);
       healing_behavior();
     default:
-     on = 0;
+      turn_off();
     break;
   }
 }
@@ -191,7 +204,7 @@ void RadioRobot::healing_behavior() {//need to test, but on board set to heal an
   int i;
   find_closest_zombie(current_x,current_y,d,i);
   if(i == -1) {//no zombies
-    on = 0;
+    turn_off();
   } else {
     set_destination(con(robotPoses[i].x),con(robotPoses[i].y),'a');
     Serial.print("Hunting zombie with ID# ");
@@ -229,7 +242,7 @@ void RadioRobot::find_closest_zombie(double x, double y, double& min_d, int& min
   }
 }
 void RadioRobot::update(int ms) {
-  //radar.update(ms);
+  radar.update(ms);
 }
 double RadioRobot::con(int val) const {
   return (double) val/1000;

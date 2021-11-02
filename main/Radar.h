@@ -1,4 +1,4 @@
-/*
+
 #include "PIDMotor.h"
 #include "IRSensor.h"
 #include "Switch.h"
@@ -79,4 +79,3 @@ void Radar::get_local(double& lx, double& ly) const {
   lx = cos(approx_a)*approx_d;
   ly = sin(approx_a)*approx_d;
 }
-*/

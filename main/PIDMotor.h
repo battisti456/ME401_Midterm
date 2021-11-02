@@ -1,4 +1,6 @@
-/*
+#ifndef PIDMOTOR
+#define PIDMOTOR
+
 #include <SoftPWMServo.h>
 #include <PID_v1.h>
 
@@ -22,8 +24,8 @@ private:
 
     double r_per_count = 0;
 
-    static volatile char last_A;
-    static volatile char last_B;
+    volatile char last_A;
+    volatile char last_B;
 
     volatile int position = 0;
  
@@ -50,12 +52,14 @@ void PIDMotor::set_tunings(double p, double i, double d){
     pid.SetTunings(p,i,d);
 }
 void PIDMotor::update(int ms) {
+  
   if(ms % PIDMOTOR_POSITION_UPDATE_MS == 0) {
     update_position();
   }
   if(ms % PIDMOTOR_PID_UPDATE_MS ==0) {
     update_PID();
   }
+  
 }
 void PIDMotor::update_position() {
     char new_A = digitalRead(PIN_A);
@@ -69,8 +73,8 @@ void PIDMotor::update_position() {
 void PIDMotor::update_PID() {
     input = get_angle();
     pid.Compute();
-    digitalWrite(DIR_PIN,output < 0);
-    SoftPWMServoPWMWrite(PWM_PIN,abs(output));
+    digitalWrite(DIR_PIN,output > 0);
+    //SoftPWMServoPWMWrite(PWM_PIN,abs(output));
 }
 double PIDMotor::get_angle() const {
     return r_per_count*position;
@@ -116,4 +120,4 @@ void test_motor() {
     }
 
 }
-*/
+#endif

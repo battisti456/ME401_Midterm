@@ -29,8 +29,6 @@
 
 class SFDRRobot {
   protected:
-  int on = 0;
-  
   double current_x = 0;
   double current_y = 0;
   double current_a = 0;
@@ -69,6 +67,7 @@ class SFDRRobot {
   void update_motors_left_turn();
   void update_motors_right_turn();
   void set_destination(double x, double y, char mode);
+  void turn_off();
 
   virtual void update(int ms);
 
@@ -219,7 +218,7 @@ void SFDRRobot::report_heading() const {
   global_to_local(x_dest-current_x,y_dest-current_y,current_a,lx,ly);
   double a = atan2(ly,lx);
   Serial.print("SDFR:O");
-  if(on){
+  if(current_left_p || current_right_p){
     Serial.print("n");
   } else {
     Serial.print("ff");
@@ -263,4 +262,8 @@ void test_SFDRRobot(SFDRRobot& driving_robot) {
     Serial.print(y);
     Serial.println(")");
   }
+}
+void SFDRRobot::turn_off(){
+  set_left(0);
+  set_right(0);
 }

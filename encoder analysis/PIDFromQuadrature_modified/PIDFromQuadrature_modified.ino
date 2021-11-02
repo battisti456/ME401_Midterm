@@ -16,10 +16,11 @@ double input=0, output=0, setpoint=0;
 // TODO: STUDENTS NEED TO FIND THE RIGHT CONTROL GAINS FOR GOOD POSITION CONTROL
 
 //double ku = 690;
-//double tu = 0.133;
+//double tu = 272.2/1000;
 
-// kp=0.6*ku,ki=2*kp/tu,kd=kp*tu/8;
-double kp =40, ki = 0, kd = 0;
+//double kp=0.6*ku,ki=2*kp/tu,kd=kp*tu/8;
+//double kp =40, ki = 0, kd = 0;
+double kp = 1104, ki = 8117, kd = 37;
 
 PID myPID(&input, &output, &setpoint,kp,ki,kd, DIRECT);
 
@@ -107,7 +108,7 @@ void loop() {
   Serial.print(millis());
   Serial.println("");
         
-  delay(100);
+  //delay(1000);
         
 }
 
