@@ -1,8 +1,20 @@
+/*
+ * Current power adjust is a bit sketchy. All seems to work though.
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ */
+
+
 #include <Servo.h>
 #include <math.h>
 
 #define DRIVE_UPDATE_MS 500
-#define TURN_POWER 0.5
+#define TURN_POWER 0.2
 #define LEFT_SERVO_PIN 31
 #define RIGHT_SERVO_PIN 30
 #define DRIVING_SERVO_SPEED 13.333
@@ -12,6 +24,8 @@
 #define WHEEL_DISTANCE 0.111
 #define BALL_X_OFFSET 0
 #define BALL_Y_OFFSET 0
+
+#define TURN_ADJUST 1.5//over 1
 
 class SFDRRobot {
   protected:
@@ -191,6 +205,11 @@ void SFDRRobot::update_motors() {
     rp = rp/abs(lp);
     lp = lp/abs(lp);
   }
+
+  //slows down turns, cause they happen too fast for updates
+  double mult = 1-pow(abs(abs(lp)-abs(rp)),TURN_ADJUST);
+  lp = lp*mult;
+  rp = rp*mult;
   
   set_left(lp);
   set_right(rp);

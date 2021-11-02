@@ -1,12 +1,28 @@
+/*Healing behavior works.
+ * 
+ * 
+ * 
+ * 
+ */
+
 #include "SFDRRobot.h"
 #include "ME401_Radio.h"
 #include "Radar.h"
+#include "Switch.h"
 
 #define TEAM_ID 22
 
 #define NUM_HEALTHY_RAYS 20
 #define HEALTHY_MOVEMENT_DISTANCE 0.2
 #define BALL_RAYS 3
+
+#define TL_PIN 6
+#define TR_PIN 7
+#define BL_PIN 8
+#define BR_PIN 9
+
+#define CORRECTION_TIME_MS 100
+#define CORRECTION_POWER 0.25
 
 enum StateMachineState {
   HEALTHY = 0,
@@ -20,6 +36,8 @@ class RadioRobot: public SFDRRobot {
   RobotPose current_pose;
   StateMachineState current_state = HEALING;
   //Radar radar;
+
+  Switch tl_coll, tr_coll, bl_coll, br_coll;
   public:
   void setup();
   void update(int ms);
@@ -32,6 +50,8 @@ class RadioRobot: public SFDRRobot {
   void healing_behavior();
   void zombie_behavior();
 
+  void collision_behavior();
+
   void find_closest_ball(double x, double y, double& min_d, int& min_i) const;
   void find_closest_zombie(double x, double y, double& min_d, int& min_i) const;
 
@@ -41,12 +61,19 @@ class RadioRobot: public SFDRRobot {
 void RadioRobot::setup(){
   SFDRRobot::setup();
   setupRadio(TEAM_ID);
+  tl_coll.setup(TL_PIN);
+  tr_coll.setup(TR_PIN);
+  bl_coll.setup(BL_PIN);
+  br_coll.setup(BR_PIN);
 }
 void RadioRobot::run() {
   //update radio info
   updateRobotPoseAndBallPositions();
   current_pose = getRobotPose(TEAM_ID);
   printRobotPose(current_pose);
+
+  //reverse from collisions. couldn't get interrupt to work, but that wasn't mentioned in tthe requirements
+  collision_behavior();
   //update_state();
   on = current_pose.valid;
 
@@ -66,6 +93,32 @@ void RadioRobot::run() {
   
   report_heading();
 
+}
+void RadioRobot::collision_behavior() {
+  int tl,tr,bl,br;
+  tl = tl_coll.get_val();
+  tr = tr_coll.get_val();
+  bl = bl_coll.get_val();
+  br = tr_coll.get_val();
+  if(tl || tr || bl || br) {
+    double pl, pr;
+    if(tl) {//using elifs cause we presuppose we are driving and only one correction is needed
+      pl = -CORRECTION_POWER/2;
+      pr = -CORRECTION_POWER;
+    } else if (tr) {
+      pl = -CORRECTION_POWER;
+      pr = -CORRECTION_POWER/2;
+    } else if (bl) {
+      pl = CORRECTION_POWER/2;
+      pr = CORRECTION_POWER;
+    } else if (br) {
+      pl = CORRECTION_POWER;
+      pr = CORRECTION_POWER/2;
+    }
+    set_left(pl);
+    set_right(pr);
+    delay(CORRECTION_TIME);
+  }
 }
 void RadioRobot::update_state() {
   current_state = (StateMachineState) (current_pose.zombie + current_pose.healing*2);
