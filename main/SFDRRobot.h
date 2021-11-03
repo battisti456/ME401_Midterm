@@ -46,6 +46,7 @@ class SFDRRobot {
   //'b' for only go backward
   //'g' for get ball
   //'a' for any direction
+  //'l' for any direction, local coordinates
 
   int last_position_update_ms = 0;
 
@@ -157,7 +158,12 @@ void SFDRRobot::update_motors_right_turn(){
 void SFDRRobot::update_motors() {
   int sign_lx = 1;
   double lx, ly;
-  global_to_local(x_dest-current_x,y_dest-current_y,current_a,lx,ly);
+  if(mode_dest == 'l') {
+    lx = x_dest;
+    ly = y_dest;
+  } else {
+    global_to_local(x_dest-current_x,y_dest-current_y,current_a,lx,ly);
+  }
   double r = 0.1/get_d();
   lx = lx*r;
   ly= ly*r;
@@ -186,7 +192,7 @@ void SFDRRobot::update_motors() {
       lx = abs(lx);
       sign_lx = -1;
     }
-  } else if (mode_dest = 'a') {
+  } else {//'l' or 'a'
     sign_lx = lx/abs(lx);
     lx = abs(lx);
   }
@@ -233,6 +239,8 @@ void SFDRRobot::report_heading() const {
   Serial.print(x_dest);
   Serial.print(", y = ");
   Serial.print(y_dest);
+  Serial.print(", in mode = ");
+  Serial.print(mode_dest);
   Serial.print(" (at lx = ");
   Serial.print(lx);
   Serial.print(", ly = ");

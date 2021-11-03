@@ -65,7 +65,7 @@ void IRSensor::update(int count){
     add_value(analogRead(sensor_pin));
   }
 }
-int IRSensor::get_i() {
+int IRSensor::get_i(){
   sort_array();
   return get_median();
 }

@@ -9,9 +9,9 @@
 #define DIR_PIN 4
 #define PWM_PIN 3
 #define COUNTS_PER_REVOLUTION 2800
-#define KP 1
-#define KI 0
-#define KD 0
+#define KP 1104
+#define KI 8117
+#define KD 37
 
 #define PIDMOTOR_POSITION_UPDATE_MS 1
 #define PIDMOTOR_PID_UPDATE_MS 100
@@ -45,8 +45,22 @@ public:
 };
 
 void PIDMotor::setup() {
-    set_tunings(KP,KI,KD);
-    r_per_count = 2*3.141592653/COUNTS_PER_REVOLUTION;
+  pinMode(PIN_A,INPUT);
+  pinMode(PIN_B,INPUT);
+  last_A = digitalRead(PIN_A);
+  last_B = digitalRead(PIN_B);
+  pinMode(PWM_PIN,OUTPUT);
+  pinMode(DIR_PIN,OUTPUT);
+  digitalWrite(PWM_PIN,0);
+  digitalWrite(DIR_PIN,0);
+  SoftPWMServoPWMWrite(PWM_PIN,0);
+
+  pid.SetMode(AUTOMATIC);
+  pid.SetSampleTime(PIDMOTOR_PID_UPDATE_MS);
+  pid.SetOutputLimits(-255,255);
+  
+  set_tunings(KP,KI,KD);
+  r_per_count = 2*3.141592653/COUNTS_PER_REVOLUTION;
 }
 void PIDMotor::set_tunings(double p, double i, double d){
     pid.SetTunings(p,i,d);
@@ -74,7 +88,7 @@ void PIDMotor::update_PID() {
     input = get_angle();
     pid.Compute();
     digitalWrite(DIR_PIN,output > 0);
-    //SoftPWMServoPWMWrite(PWM_PIN,abs(output));
+    SoftPWMServoPWMWrite(PWM_PIN,abs(output));
 }
 double PIDMotor::get_angle() const {
     return r_per_count*position;
@@ -86,38 +100,4 @@ void PIDMotor::set_position(double a){
   position = (int) a/r_per_count;
 }
 
-void test_motor() {
-    Serial.println("Testing PID Motor. Setting up...");
-    PIDMotor motor;
-    double p = 1;
-    int settle_time = 5000;
-    int pos = 0;
-    double pos_angle = 1.57079632679;
-    int stable = 1;
-    motor.setup();
-    motor.set_angle(0);
-    delay(settle_time);
-    while(stable) {
-        stable = 1;
-        p++;
-        pos = !pos;
-        Serial.print("Testing kp=");
-        Serial.println(p);
-        motor.set_angle(pos*pos_angle);
-        delay(settle_time);
-        for(int i = 0; i^2 < settle_time; i += 10) {
-            delay(i^2);//uneven spacing to ensure not same frequency as oscillations (if any)
-            stable = stable & abs(motor.get_angle() - pos*pos_angle) < pos_angle*0.1;//if ever false, we consider it to be unstable
-        }
-    }
-    Serial.print("Beggining test with kp=");
-    Serial.println(p);
-    for(int i = 0; i < 200; i++) {
-        Serial.print(motor.get_angle());
-        Serial.print(",");
-        Serial.println(millis());
-        delay(0.2);
-    }
-
-}
 #endif

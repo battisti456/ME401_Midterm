@@ -4,7 +4,6 @@
  * 
  * 
  */
-
 #include "SFDRRobot.h"
 #include "ME401_Radio.h"
 #include "Radar.h"
@@ -26,6 +25,19 @@
 
 #define COLLECTOR_POWER 0.25
 
+#define BALL_IN_CORNER_DETECT_THRESHOLD 0.025                                                                                                                                                                                                                                                                                        
+
+
+
+
+
+
+
+#define COLLECTOR_SERVO_PIN 32
+
+#define SENSOR_B_PIN A8//blue green yellow
+#define SENSOR_B_C {5.49976232471757,-0.0742105466012858,0.000459695958580232,-0.00000159661150092819,0.00000000328284524668939,-0.0000000000039055365092165,0.00000000000000235526000053281,-0.000000000000000000371191021601162,-0.000000000000000000000163477511119758}
+
 enum StateMachineState {
   HEALTHY = 0,
   ZOMBIE = 1,
@@ -36,12 +48,14 @@ enum StateMachineState {
 class RadioRobot: public SFDRRobot {
   private:
   RobotPose current_pose;
-  StateMachineState current_state = HEALING;
+  StateMachineState current_state = HEALTHY;
   //Radar radar;
 
   Switch tl_coll, tr_coll, bl_coll, br_coll;
 
   Servo collector;
+
+  IRSensor sensor;
 
   Radar radar;
   public:
@@ -71,12 +85,16 @@ void RadioRobot::set_collector(double p) {
 }
 
 void RadioRobot::setup(){
+  radar.setup();
   SFDRRobot::setup();
   setupRadio(TEAM_ID);
   tl_coll.setup(TL_PIN);
   tr_coll.setup(TR_PIN);
   bl_coll.setup(BL_PIN);
   br_coll.setup(BR_PIN);
+  collector.attach(COLLECTOR_SERVO_PIN);
+  double c[NUMBER_OF_COEFFICIENTS] = SENSOR_B_C;
+  sensor.setup(SENSOR_B_PIN,c);
 }
 void RadioRobot::run() {
   //update radio info
@@ -101,7 +119,14 @@ void RadioRobot::run() {
   
   //update motor speeds
   update_motors();
-  
+
+  //tell radar which direction robot is truning
+  if(abs(current_left_p) > abs(current_right_p)) {
+    radar.set_turning(current_left_p/abs(current_left_p));
+  } else {
+    radar.set_turning(-1*current_right_p/abs(current_right_p));
+  }
+
   report_heading();
 
 }
@@ -153,10 +178,21 @@ void RadioRobot::update_behavior() {
   }
 }
 void RadioRobot::healthy_behavior() {
+  if(sensor.get_d() < BALL_IN_CORNER_DETECT_THRESHOLD) {
+    Serial.println("Ball stuck a bit in corner");
+    set_left(0);
+    set_right(0.2);
+    return;
+  }
   double d = 0;
   int index = 0;
   find_closest_ball(current_x,current_y,d,index);
   if(d<HEALTHY_MOVEMENT_DISTANCE) {//go for ball no matter what
+    Serial.print("Ball at x = ");
+    Serial.print(con(ballPositions[index].x));
+    Serial.print(", y = ");
+    Serial.print(con(ballPositions[index].y));
+    Serial.print(" has run out of time.");
     set_destination(con(ballPositions[index].x),con(ballPositions[index].y),'g');
   } else {//go for one of the BALL_RAYS least dangerous positions out of NUM_HEALTHY_RAYS which is closest to a ball
     double zombie_d[BALL_RAYS] = {0};
@@ -183,7 +219,7 @@ void RadioRobot::healthy_behavior() {
       }
     }
   
-    double min_d = 10;//findin ray with closest ball
+    double min_d = 10;//finding ray with closest ball
     for(int i = 0; i < BALL_RAYS; i++) {
       find_closest_ball(x_vals[i],y_vals[i],d,index);
       if( d < min_d) {
@@ -192,12 +228,31 @@ void RadioRobot::healthy_behavior() {
         y = y_vals[i];
       }
     }
-    
+
+    Serial.print("Instead of going to the point of highest safety, at x = ");
+    Serial.print(x_vals[0]);
+    Serial.print(", y = ");
+    Serial.print(y_vals[0]);
+    Serial.print(", I am instead going to x = ");
+    Serial.print(x);
+    Serial.print(", y = ");
+    Serial.print(y);
+    Serial.print(" just for funzees.");
     set_destination(x,y,'a');
   }
 }
 void RadioRobot::zombie_behavior() {
-  
+  if(radar.get_tracking()) {
+    Serial.print("On the trail for ");
+    Serial.print(con(radar.get_time())/60/60/24);
+    Serial.print(" days.");
+    double lx,ly;
+    radar.get_local(lx,ly);
+    set_destination(lx,ly,'l');
+  } else {
+    Serial.print("Off awanderin.");
+    set_destination(con(random(2000)-1000),con(random(2000)-1000),'l');
+  }
 }
 void RadioRobot::healing_behavior() {//need to test, but on board set to heal and see if it follows nearest zombie on a stick
   double d;
@@ -243,6 +298,7 @@ void RadioRobot::find_closest_zombie(double x, double y, double& min_d, int& min
 }
 void RadioRobot::update(int ms) {
   radar.update(ms);
+  sensor.update(ms);
 }
 double RadioRobot::con(int val) const {
   return (double) val/1000;
