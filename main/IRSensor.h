@@ -3,7 +3,7 @@
 
 #define NUMBER_OF_COEFFICIENTS 9
 #define FILTER_LENGTH 50
-#define IRSENSOR_UPDATE_MS 100
+#define IRSENSOR_UPDATE_US 500
 
 class IRSensor {
 private:
@@ -61,7 +61,7 @@ void IRSensor::setup(int pin,double c[NUMBER_OF_COEFFICIENTS]) {
      }
 } 
 void IRSensor::update(int count){
-  if(count%IRSENSOR_UPDATE_MS == 0) {
+  if(count%IRSENSOR_UPDATE_US == 0) {
     add_value(analogRead(sensor_pin));
   }
 }
@@ -103,7 +103,7 @@ void test_sensor(IRSensor& sensor) {
     int last_val = val;
     Serial.println("Testing IRSensor");
     while(1) {
-        //sensor.update(IRSENSOR_UPDATE_MS);
+        //sensor.update(IRSENSOR_UPDATE_US);
         val = sensor.get_i();
         if(val != last_val) {
             last_val = val;

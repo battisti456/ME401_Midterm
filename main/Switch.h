@@ -1,8 +1,6 @@
 #ifndef SWITCH
 #define SWITCH
 
-#define SWITCH_UPDATE_MS 100
-
 class Switch {
   private:
   int pin = 0;

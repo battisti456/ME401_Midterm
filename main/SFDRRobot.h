@@ -13,7 +13,7 @@
 #include <Servo.h>
 #include <math.h>
 
-#define DRIVE_UPDATE_MS 500
+#define DRIVE_UPDATE_US 500000
 #define TURN_POWER 0.2
 #define LEFT_SERVO_PIN 31
 #define RIGHT_SERVO_PIN 30
@@ -42,11 +42,11 @@ class SFDRRobot {
   double x_dest = 2;
   double y_dest = 2;
   char mode_dest = 0;
+  bool ball_offset = false;
+  bool local_dest = false;
   //'f' for only go forward
   //'b' for only go backward
-  //'g' for get ball
   //'a' for any direction
-  //'l' for any direction, local coordinates
 
   int last_position_update_ms = 0;
 
@@ -68,6 +68,7 @@ class SFDRRobot {
   void update_motors_left_turn();
   void update_motors_right_turn();
   void set_destination(double x, double y, char mode);
+  void set_destination(double x, double y, char mode, bool local, bool ball);
   void turn_off();
 
   virtual void update(int ms);
@@ -76,6 +77,8 @@ class SFDRRobot {
   void report_heading() const;
 
   double point_distance(double x1, double y1, double x2, double y2) const;
+  void correct_p(double& lp, double& rp, int sign) const;
+  void correct_l(double& lx, double& ly, int& sign) const;
 };
 
 void SFDRRobot::setup() {
@@ -114,7 +117,7 @@ void SFDRRobot::predict_position(double dt, double& new_x, double& new_y, double
   new_a = current_a + a;
 }
 void SFDRRobot::update(int ms){
-  if (ms%DRIVE_UPDATE_MS == 0) {
+  if (ms%DRIVE_UPDATE_US == 0) {
     //predict_position((double) (last_position_update_ms-ms)/1000,current_x,current_y,current_a);
     //last_position_update_ms = ms;
     update_motors();
@@ -138,14 +141,19 @@ void SFDRRobot::p_for_lx_ly(double lx, double ly, double& lp, double& rp) {
   double sl = 2*sm-sr;
 
   //might give invalid p values, just hope we choose lx ly well
-  //Serial.println(1/wheel_radius/servo_speed/DRIVE_UPDATE_MS*1000);//4.62
+  //Serial.println(1/wheel_radius/servo_speed/DRIVE_UPDATE_US*1000);//4.62
   lp = sl;
   rp = sr;
 }
 void SFDRRobot::set_destination(double x, double y, char mode){
+  set_destination(x,y,mode,false,false);
+}
+void SFDRRobot::set_destination(double x, double y, char mode, bool local, bool ball){
   x_dest = x;
   y_dest = y;
   mode_dest = mode;
+  local_dest = local;
+  ball_offset = ball;
 }
 void SFDRRobot::update_motors_left_turn(){
   set_left(-TURN_POWER);
@@ -155,23 +163,45 @@ void SFDRRobot::update_motors_right_turn(){
   set_left(TURN_POWER);
   set_right(-TURN_POWER);
 }
+void SFDRRobot::correct_l(double& lx, double& ly, int& sign) const {
+  double r = 0.1/get_d();
+  lx = lx*r;
+  ly= ly*r;
+  if(ball_offset) {//get ball
+    lx += BALL_X_OFFSET;
+    ly += BALL_Y_OFFSET;
+  }
+}
+void SFDRRobot::correct_p(double& lp, double& rp, int sign) const {
+  lp = lp*sign;
+  rp = rp*sign;
+  
+  if(abs(rp) > abs(lp)) {//power correction
+    lp = lp/abs(rp);
+    rp = rp/abs(rp);
+  } else {
+    rp = rp/abs(lp);
+    lp = lp/abs(lp);
+  }
+
+  //slows down turns, cause they happen too fast for updates
+  double mult = 1-pow(abs(abs(lp)-abs(rp)),TURN_ADJUST);
+  lp = lp*mult;
+  rp = rp*mult;
+}
 void SFDRRobot::update_motors() {
-  int sign_lx = 1;
+  int sign = 1;
   double lx, ly;
-  if(mode_dest == 'l') {
+  if(local_dest) {
     lx = x_dest;
     ly = y_dest;
   } else {
     global_to_local(x_dest-current_x,y_dest-current_y,current_a,lx,ly);
   }
-  double r = 0.1/get_d();
-  lx = lx*r;
-  ly= ly*r;
-  if(mode_dest == 'g') {//get ball
-    lx += BALL_X_OFFSET;
-    ly += BALL_Y_OFFSET;
-  }
-  if(mode_dest == 'g' || mode_dest == 'f') {//only go forward
+  
+  correct_l(lx,ly,sign);
+  
+  if(mode_dest == 'f') {//only go forward
     if (lx < 0) {
       if(ly > 0 ) {
         update_motors_left_turn();
@@ -190,31 +220,17 @@ void SFDRRobot::update_motors() {
       return;//turn procedure
     } else {
       lx = abs(lx);
-      sign_lx = -1;
+      sign = -1;
     }
-  } else {//'l' or 'a'
-    sign_lx = lx/abs(lx);
+  } else {//'a'
+    sign = lx/abs(lx);
     lx = abs(lx);
   }
 
   double lp, rp;
   p_for_lx_ly(lx,ly,lp,rp);
 
-  lp = lp*sign_lx;
-  rp = rp*sign_lx;
-  
-  if(abs(rp) > abs(lp)) {//power correction
-    lp = lp/abs(rp);
-    rp = rp/abs(rp);
-  } else {
-    rp = rp/abs(lp);
-    lp = lp/abs(lp);
-  }
-
-  //slows down turns, cause they happen too fast for updates
-  double mult = 1-pow(abs(abs(lp)-abs(rp)),TURN_ADJUST);
-  lp = lp*mult;
-  rp = rp*mult;
+  correct_p(lp,rp,sign);
   
   set_left(lp);
   set_right(rp);

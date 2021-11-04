@@ -13,8 +13,8 @@
 #define KI 8117
 #define KD 37
 
-#define PIDMOTOR_POSITION_UPDATE_MS 1
-#define PIDMOTOR_PID_UPDATE_MS 100
+#define PIDMOTOR_POSITION_UPDATE_US 10
+#define PIDMOTOR_PID_UPDATE_US 10000
 
 class PIDMotor {
 private:
@@ -56,7 +56,7 @@ void PIDMotor::setup() {
   SoftPWMServoPWMWrite(PWM_PIN,0);
 
   pid.SetMode(AUTOMATIC);
-  pid.SetSampleTime(PIDMOTOR_PID_UPDATE_MS);
+  pid.SetSampleTime(PIDMOTOR_PID_UPDATE_US/1000);//us to ms
   pid.SetOutputLimits(-255,255);
   
   set_tunings(KP,KI,KD);
@@ -66,11 +66,10 @@ void PIDMotor::set_tunings(double p, double i, double d){
     pid.SetTunings(p,i,d);
 }
 void PIDMotor::update(int ms) {
-  
-  if(ms % PIDMOTOR_POSITION_UPDATE_MS == 0) {
+  if(ms % PIDMOTOR_POSITION_UPDATE_US == 0) {
     update_position();
   }
-  if(ms % PIDMOTOR_PID_UPDATE_MS ==0) {
+  if(ms % PIDMOTOR_PID_UPDATE_US ==0) {
     update_PID();
   }
   
@@ -98,6 +97,7 @@ double PIDMotor::set_angle(double a) {
 }
 void PIDMotor::set_position(double a){
   position = (int) a/r_per_count;
+  set_angle(a);
 }
 
 #endif

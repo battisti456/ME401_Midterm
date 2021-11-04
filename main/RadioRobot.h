@@ -20,7 +20,7 @@
 #define BL_PIN 8
 #define BR_PIN 9
 
-#define CORRECTION_TIME_MS 100
+#define CORRECTION_TIME_US 1000000
 #define CORRECTION_POWER 0.25
 
 #define COLLECTOR_POWER 0.25
@@ -48,7 +48,7 @@ enum StateMachineState {
 class RadioRobot: public SFDRRobot {
   private:
   RobotPose current_pose;
-  StateMachineState current_state = HEALTHY;
+  StateMachineState current_state = ZOMBIE;
   //Radar radar;
 
   Switch tl_coll, tr_coll, bl_coll, br_coll;
@@ -100,6 +100,7 @@ void RadioRobot::run() {
   //update radio info
   updateRobotPoseAndBallPositions();
   current_pose = getRobotPose(TEAM_ID);
+  Serial.print("Current pose: ");
   printRobotPose(current_pose);
 
   //reverse from collisions. couldn't get interrupt to work, but that wasn't mentioned in tthe requirements
@@ -122,9 +123,9 @@ void RadioRobot::run() {
 
   //tell radar which direction robot is truning
   if(abs(current_left_p) > abs(current_right_p)) {
-    radar.set_turning(current_left_p/abs(current_left_p));
+    radar.set_turning(current_left_p/abs(current_left_p)*abs(current_right_p)/abs(current_left_p));
   } else {
-    radar.set_turning(-1*current_right_p/abs(current_right_p));
+    radar.set_turning(-1*current_right_p/abs(current_right_p)*abs(current_left_p)/abs(current_right_p));
   }
 
   report_heading();
@@ -135,7 +136,7 @@ void RadioRobot::collision_behavior() {
   tl = tl_coll.get_val();
   tr = tr_coll.get_val();
   bl = bl_coll.get_val();
-  br = tr_coll.get_val();
+  br = br_coll.get_val();
   if(tl || tr || bl || br) {
     double pl, pr;
     if(tl) {//using elifs cause we presuppose we are driving and only one correction is needed
@@ -151,9 +152,13 @@ void RadioRobot::collision_behavior() {
       pl = CORRECTION_POWER;
       pr = CORRECTION_POWER/2;
     }
+    Serial.print("Correcting a collision with pl = ");
+    Serial.print(pl);
+    Serial.print(", pr = ");
+    Serial.println(pr);
     set_left(pl);
     set_right(pr);
-    delay(CORRECTION_TIME_MS);
+    delay(CORRECTION_TIME_US/1000);
   }
 }
 void RadioRobot::update_state() {
@@ -193,7 +198,7 @@ void RadioRobot::healthy_behavior() {
     Serial.print(", y = ");
     Serial.print(con(ballPositions[index].y));
     Serial.print(" has run out of time.");
-    set_destination(con(ballPositions[index].x),con(ballPositions[index].y),'g');
+    set_destination(con(ballPositions[index].x),con(ballPositions[index].y),'f',false,true);
   } else {//go for one of the BALL_RAYS least dangerous positions out of NUM_HEALTHY_RAYS which is closest to a ball
     double zombie_d[BALL_RAYS] = {0};
     double x_vals[BALL_RAYS] = {0};
@@ -243,14 +248,17 @@ void RadioRobot::healthy_behavior() {
 }
 void RadioRobot::zombie_behavior() {
   if(radar.get_tracking()) {
+    if(!radar.get_trust()){
+      return;//keep doin what ya doin
+    }
     Serial.print("On the trail for ");
     Serial.print(con(radar.get_time())/60/60/24);
-    Serial.print(" days.");
+    Serial.println(" days.");
     double lx,ly;
     radar.get_local(lx,ly);
-    set_destination(lx,ly,'l');
+    set_destination(lx,ly,'b',true,false);
   } else {
-    Serial.print("Off awanderin.");
+    Serial.println("Off awanderin.");
     set_destination(con(random(2000)-1000),con(random(2000)-1000),'l');
   }
 }
@@ -285,10 +293,8 @@ void RadioRobot::find_closest_zombie(double x, double y, double& min_d, int& min
   double d = 0;
   for(int i = 0; i < NUM_ROBOTS; i++) {
     if(robotPoses[i].zombie && robotPoses[i].ID != TEAM_ID && robotPoses[i].valid) {//if zombie and not me (just in case wierdness)
-      printRobotPose(robotPoses[i]);
+      //printRobotPose(robotPoses[i]);
       d = point_distance(x,y,con(robotPoses[i].x),con(robotPoses[i].y));
-      Serial.println(i);
-      Serial.println(d);
       if (d < min_d) {
         min_d = d;
         min_i = i;
