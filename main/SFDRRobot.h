@@ -22,8 +22,8 @@
 #define DRIVING_SERVO_MS_MAX 1.7
 #define WHEEL_RADIUS 0.0325
 #define WHEEL_DISTANCE 0.111
-#define BALL_X_OFFSET 0
-#define BALL_Y_OFFSET 0
+#define BALL_X_OFFSET -0.055
+#define BALL_Y_OFFSET -0.073
 
 #define TURN_ADJUST 1.5//over 1
 
@@ -269,7 +269,11 @@ void SFDRRobot::report_heading() const {
   Serial.println(current_right_p);
 }
 double SFDRRobot::get_d() const{
-  return point_distance(current_x,current_y,x_dest,y_dest);
+  if(local_dest){
+    return point_distance(0,0,x_dest,y_dest);
+  } else {
+    return point_distance(current_x,current_y,x_dest,y_dest);
+  }
 }
 double SFDRRobot::point_distance(double x1, double y1, double x2, double y2) const {
   return sqrt(pow(x1-x2,2)+pow(y1-y2,2));

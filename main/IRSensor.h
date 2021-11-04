@@ -18,7 +18,7 @@ private:
     int get_median();
 public:
     void setup(int pin,double c[NUMBER_OF_COEFFICIENTS]);
-    void update(int count);
+    void update(int us);
     int get_i();
     double get_d();
 
@@ -60,8 +60,8 @@ void IRSensor::setup(int pin,double c[NUMBER_OF_COEFFICIENTS]) {
          coefficients[i] = c[i];
      }
 } 
-void IRSensor::update(int count){
-  if(count%IRSENSOR_UPDATE_US == 0) {
+void IRSensor::update(int us){
+  if(us%IRSENSOR_UPDATE_US == 0) {
     add_value(analogRead(sensor_pin));
   }
 }

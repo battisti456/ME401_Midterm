@@ -34,7 +34,7 @@ public:
     void setup();
     void update_position();
     void update_PID();
-    void update(int ms);
+    void update(int us);
 
     void set_tunings(double p, double i, double d);
 
@@ -65,11 +65,11 @@ void PIDMotor::setup() {
 void PIDMotor::set_tunings(double p, double i, double d){
     pid.SetTunings(p,i,d);
 }
-void PIDMotor::update(int ms) {
-  if(ms % PIDMOTOR_POSITION_UPDATE_US == 0) {
+void PIDMotor::update(int us) {
+  if(us % PIDMOTOR_POSITION_UPDATE_US == 0) {
     update_position();
   }
-  if(ms % PIDMOTOR_PID_UPDATE_US ==0) {
+  if(us % PIDMOTOR_PID_UPDATE_US ==0) {
     update_PID();
   }
   

@@ -11,9 +11,9 @@
 
 #define TEAM_ID 22
 
-#define NUM_HEALTHY_RAYS 20
+#define NUM_HEALTHY_RAYS 30
 #define HEALTHY_MOVEMENT_DISTANCE 0.2
-#define BALL_RAYS 3
+#define BALL_RAYS 10
 
 #define TL_PIN 6
 #define TR_PIN 7
@@ -27,16 +27,14 @@
 
 #define BALL_IN_CORNER_DETECT_THRESHOLD 0.025                                                                                                                                                                                                                                                                                        
 
-
-
-
-
-
+#define ZOMBIE_RUN_MS 2000
 
 #define COLLECTOR_SERVO_PIN 32
 
 #define SENSOR_B_PIN A8//blue green yellow
 #define SENSOR_B_C {5.49976232471757,-0.0742105466012858,0.000459695958580232,-0.00000159661150092819,0.00000000328284524668939,-0.0000000000039055365092165,0.00000000000000235526000053281,-0.000000000000000000371191021601162,-0.000000000000000000000163477511119758}
+
+#define N_DIV 3
 
 enum StateMachineState {
   HEALTHY = 0,
@@ -48,8 +46,7 @@ enum StateMachineState {
 class RadioRobot: public SFDRRobot {
   private:
   RobotPose current_pose;
-  StateMachineState current_state = ZOMBIE;
-  //Radar radar;
+  StateMachineState current_state = HEALTHY;
 
   Switch tl_coll, tr_coll, bl_coll, br_coll;
 
@@ -58,9 +55,11 @@ class RadioRobot: public SFDRRobot {
   IRSensor sensor;
 
   Radar radar;
+
+  int last_scan_ms = 0;
   public:
   void setup();
-  void update(int ms);
+  void update(int us);
   void run();
 
   void update_state();
@@ -104,30 +103,29 @@ void RadioRobot::run() {
   printRobotPose(current_pose);
 
   //reverse from collisions. couldn't get interrupt to work, but that wasn't mentioned in tthe requirements
+  Serial.println("Applying collision behavior");
   collision_behavior();
   //update_state();
 
   //update position info
+  Serial.print("Update position using ");
   if (current_state == ZOMBIE) {//cannot use radio posiitoning
+    Serial.println("best guess");
     predict_position(con(last_position_update_ms-millis()),current_x,current_y,current_a);
     last_position_update_ms = millis();
   } else {//can use radio positioning
+    Serial.println("radio information");
     set_position(con(current_pose.x),con(current_pose.y), con(current_pose.theta));
   }
   
   //update intented behavior
+  Serial.print("Do behavior according to state: ");
   update_behavior();
   
   //update motor speeds
+  Serial.println("Calculate and set motor speeds");
   update_motors();
-
-  //tell radar which direction robot is truning
-  if(abs(current_left_p) > abs(current_right_p)) {
-    radar.set_turning(current_left_p/abs(current_left_p)*abs(current_right_p)/abs(current_left_p));
-  } else {
-    radar.set_turning(-1*current_right_p/abs(current_right_p)*abs(current_left_p)/abs(current_right_p));
-  }
-
+  
   report_heading();
 
 }
@@ -167,14 +165,17 @@ void RadioRobot::update_state() {
 void RadioRobot::update_behavior() {
   switch(current_state) {
     case HEALTHY://hunting balls while avoiding zombies.
-      set_collector(COLLECTOR_POWER);
+      Serial.println("healthy");
+      set_collector(-COLLECTOR_POWER);
       healthy_behavior();
     break;
     case ZOMBIE://hunt for healthy
+      Serial.println("zombie");
       set_collector(0);
       zombie_behavior();
     break;
     case HEALING://seek out nearest zombie
+    Serial.println("healing");
       set_collector(0);
       healing_behavior();
     default:
@@ -183,83 +184,50 @@ void RadioRobot::update_behavior() {
   }
 }
 void RadioRobot::healthy_behavior() {
-  if(sensor.get_d() < BALL_IN_CORNER_DETECT_THRESHOLD) {
-    Serial.println("Ball stuck a bit in corner");
+  double ball_dist = sensor.get_d();
+  if(ball_dist < BALL_IN_CORNER_DETECT_THRESHOLD) {
+    Serial.print("Ball stuck a bit in corner at d = ");
+    Serial.println(ball_dist);
     set_left(0);
     set_right(0.2);
     return;
   }
-  double d = 0;
-  int index = 0;
-  find_closest_ball(current_x,current_y,d,index);
-  if(d<HEALTHY_MOVEMENT_DISTANCE) {//go for ball no matter what
-    Serial.print("Ball at x = ");
-    Serial.print(con(ballPositions[index].x));
-    Serial.print(", y = ");
-    Serial.print(con(ballPositions[index].y));
-    Serial.print(" has run out of time.");
-    set_destination(con(ballPositions[index].x),con(ballPositions[index].y),'f',false,true);
-  } else {//go for one of the BALL_RAYS least dangerous positions out of NUM_HEALTHY_RAYS which is closest to a ball
-    double zombie_d[BALL_RAYS] = {0};
-    double x_vals[BALL_RAYS] = {0};
-    double y_vals[BALL_RAYS] = {0};
-  
-    double x = 0;
-    double y = 0;
-    for(int i  = 0; i < NUM_HEALTHY_RAYS; i++) {//finding BALL_RAYS least dangerous positions
-      x = current_x+HEALTHY_MOVEMENT_DISTANCE*cos(current_a+2*3.14159/NUM_HEALTHY_RAYS*i);
-      y = current_y+HEALTHY_MOVEMENT_DISTANCE*sin(current_a+2*3.14159/NUM_HEALTHY_RAYS*i);
-      find_closest_zombie(x,y,d,index);
-      for(int j = 0; j < BALL_RAYS; j++) {//find furthest points from zombies
-        if(d > zombie_d[i]) {
-          for(int k = BALL_RAYS -2; k >= i; k--) {
-            zombie_d[k+1] = zombie_d[k];
-            x_vals[k+1] = x_vals[k];
-            y_vals[k+1] = y_vals[k];
-          }
-          x_vals[i] = x;
-          y_vals[i] = y;
-          zombie_d[i] = d;
-        }
-      }
-    }
-  
-    double min_d = 10;//finding ray with closest ball
-    for(int i = 0; i < BALL_RAYS; i++) {
-      find_closest_ball(x_vals[i],y_vals[i],d,index);
-      if( d < min_d) {
-        min_d = d;
-        x = x_vals[i];
-        y = y_vals[i];
-      }
-    }
+  double ball_d, zombie_d;
+  int ball_i, zombie_i;
 
-    Serial.print("Instead of going to the point of highest safety, at x = ");
-    Serial.print(x_vals[0]);
-    Serial.print(", y = ");
-    Serial.print(y_vals[0]);
-    Serial.print(", I am instead going to x = ");
-    Serial.print(x);
-    Serial.print(", y = ");
-    Serial.print(y);
-    Serial.print(" just for funzees.");
+  find_closest_ball(current_x,current_y,ball_d,ball_i);
+  find_closest_zombie(current_x,current_y,zombie_d,zombie_i);
+
+  int val = zombie_d != 100 + 2*(ball_d != 100);
+  Serial.print("Val is ");
+  Serial.print(val);
+  if(val == 0) {//nothing to do
+    turn_off();
+  } else if(val == 2 || (val == 3 && (ball_d < 0.3 || zombie_d > ball_d))) {//go after ball
+    set_destination(con(ballPositions[ball_i].x),con(ballPositions[ball_i].y),'f',false,true);
+  } else {//run from zombie
+    double x,y,dx,dy;
+    dx = con(robotPoses[zombie_i].x)-current_x;
+    dy = con(robotPoses[zombie_i].y)-current_y;
+    x = current_x - dx;
+    y = current_y - dy;
     set_destination(x,y,'a');
   }
 }
 void RadioRobot::zombie_behavior() {
-  if(radar.get_tracking()) {
-    if(!radar.get_trust()){
-      return;//keep doin what ya doin
+  int t= millis();
+  if(t-last_scan_ms > ZOMBIE_RUN_MS) {//so scan is not done too often
+    last_scan_ms = t;
+    
+    turn_off();//during scan
+    bool found;
+    double lx, ly;
+    radar.find_object(found,lx,ly);
+    if(found) {
+      set_destination(lx,ly,'a',true,false);
+    } else {
+      set_destination(con(random(2000)-1000),con(random(2000)-1000),'a',true,false);
     }
-    Serial.print("On the trail for ");
-    Serial.print(con(radar.get_time())/60/60/24);
-    Serial.println(" days.");
-    double lx,ly;
-    radar.get_local(lx,ly);
-    set_destination(lx,ly,'b',true,false);
-  } else {
-    Serial.println("Off awanderin.");
-    set_destination(con(random(2000)-1000),con(random(2000)-1000),'l');
   }
 }
 void RadioRobot::healing_behavior() {//need to test, but on board set to heal and see if it follows nearest zombie on a stick
@@ -302,9 +270,9 @@ void RadioRobot::find_closest_zombie(double x, double y, double& min_d, int& min
     }
   }
 }
-void RadioRobot::update(int ms) {
-  radar.update(ms);
-  sensor.update(ms);
+void RadioRobot::update(int us) {
+  radar.update(us);
+  sensor.update(us);
 }
 double RadioRobot::con(int val) const {
   return (double) val/1000;

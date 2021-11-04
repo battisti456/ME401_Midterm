@@ -6,7 +6,7 @@ class Switch {
   int pin = 0;
   public:
   void setup(int p);
-  void update(int ms);
+  void update(int us);
   int get_val() const;
 };
 void Switch::setup(int p){
