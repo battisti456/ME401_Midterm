@@ -184,6 +184,9 @@ void RadioRobot::update_behavior() {
   }
 }
 void RadioRobot::healthy_behavior() {
+  static bool in_collect_ball_mode = false;
+  static double last_ball_x = 0;
+  static double last_ball_y = 0;
   double ball_dist = sensor.get_d();
   if(ball_dist < BALL_IN_CORNER_DETECT_THRESHOLD) {
     Serial.print("Ball stuck a bit in corner at d = ");
@@ -198,14 +201,59 @@ void RadioRobot::healthy_behavior() {
   find_closest_ball(current_x,current_y,ball_d,ball_i);
   find_closest_zombie(current_x,current_y,zombie_d,zombie_i);
 
-  int val = zombie_d != 100 + 2*(ball_d != 100);
-  Serial.print("Val is ");
-  Serial.print(val);
-  if(val == 0) {//nothing to do
+  double ball_x = con(ballPositions[ball_i].x);
+  double ball_y = con(ballPositions[ball_i].y);
+  bool ignore_ball = point_distance(ball_x,ball_y,last_ball_x,last_ball_y) > 0.05;
+  last_ball_x = ball_x;
+  last_ball_y = ball_y;
+
+  int val = 2*(zombie_d == 100) + (ball_d == 100);
+  switch(val) {
+    case 0:
+    Serial.println("There are zombies and there are balls.");
+    break;
+    case 1:
+    Serial.println("There are zombies but there are no balls.");
+    break;
+    case 2:
+    Serial.println("There are no zombies but there are balls.");
+    break;
+    case 3:
+    Serial.println("There are no zombies and there are no balls.");
+  }
+  if(val == 3) {//nothing to do
     turn_off();
-  } else if(val == 2 || (val == 3 && (ball_d < 0.3 || zombie_d > ball_d))) {//go after ball
+    return;
+  } else if(val == 2) {
+    in_collect_ball_mode = true;
+  } else if (ball_d < 0.3) {
+    in_collect_ball_mode = true;
+  } else if (zombie_d - ball_d > 0.3) {
+    in_collect_ball_mode = true;
+  } else if (ball_d > 0.5) {
+    in_collect_ball_mode = false;
+  } else if (zombie_d - ball_d < -0.3) {
+    in_collect_ball_mode = false;
+  }
+  
+  /*
+  else if(val == 2 || (val == 0 && (ball_d < 0.3 || zombie_d > ball_d))) {//go after ball
     set_destination(con(ballPositions[ball_i].x),con(ballPositions[ball_i].y),'f',false,true);
   } else {//run from zombie
+    double x,y,dx,dy;
+    dx = con(robotPoses[zombie_i].x)-current_x;
+    dy = con(robotPoses[zombie_i].y)-current_y;
+    x = current_x - dx;
+    y = current_y - dy;
+    set_destination(x,y,'a');
+  }*/
+  if(in_collect_ball_mode) {
+    if(!ignore_ball) {
+      set_destination(con(ballPositions[ball_i].x),con(ballPositions[ball_i].y),'f',false,true);
+    } else {
+      Serial.println("Ignoring ball.");
+    }
+  } else {
     double x,y,dx,dy;
     dx = con(robotPoses[zombie_i].x)-current_x;
     dy = con(robotPoses[zombie_i].y)-current_y;

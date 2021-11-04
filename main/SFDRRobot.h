@@ -14,7 +14,7 @@
 #include <math.h>
 
 #define DRIVE_UPDATE_US 500000
-#define TURN_POWER 0.2
+#define TURN_POWER 0.1
 #define LEFT_SERVO_PIN 31
 #define RIGHT_SERVO_PIN 30
 #define DRIVING_SERVO_SPEED 13.333
@@ -22,8 +22,8 @@
 #define DRIVING_SERVO_MS_MAX 1.7
 #define WHEEL_RADIUS 0.0325
 #define WHEEL_DISTANCE 0.111
-#define BALL_X_OFFSET -0.055
-#define BALL_Y_OFFSET -0.073
+#define BALL_X_OFFSET -0.05
+#define BALL_Y_OFFSET 0.12
 
 #define TURN_ADJUST 1.5//over 1
 
@@ -164,9 +164,15 @@ void SFDRRobot::update_motors_right_turn(){
   set_right(-TURN_POWER);
 }
 void SFDRRobot::correct_l(double& lx, double& ly, int& sign) const {
-  double r = 0.1/get_d();
-  lx = lx*r;
-  ly= ly*r;
+  //double r = 0.1/get_d();
+  //lx = lx*r;
+  //ly= ly*r;
+  double d = point_distance(0,0,lx,ly);
+  if(d > 0.2) {
+    double r = 0.2/d;
+    lx = lx*r;
+    ly = ly*r;
+  }
   if(ball_offset) {//get ball
     lx += BALL_X_OFFSET;
     ly += BALL_Y_OFFSET;
@@ -202,16 +208,17 @@ void SFDRRobot::update_motors() {
   correct_l(lx,ly,sign);
   
   if(mode_dest == 'f') {//only go forward
-    if (lx < 0) {
+    /*if (lx < 0) {//lx < 0
       if(ly > 0 ) {
         update_motors_left_turn();
       } else {
         update_motors_right_turn();
       }
       return;//turn procedure
-    }
+    }*/
+    sign = 1;
   } else if (mode_dest == 'b') {//only go backward
-    if (lx > 0) {
+    /*if (lx > 0) {
       if(ly > 0) {
         update_motors_right_turn();
       } else {
@@ -221,7 +228,9 @@ void SFDRRobot::update_motors() {
     } else {
       lx = abs(lx);
       sign = -1;
-    }
+    }*/
+    lx = -lx;
+    sign = -1;
   } else {//'a'
     sign = lx/abs(lx);
     lx = abs(lx);
@@ -237,7 +246,16 @@ void SFDRRobot::update_motors() {
 }
 void SFDRRobot::report_heading() const {
   double lx, ly;
-  global_to_local(x_dest-current_x,y_dest-current_y,current_a,lx,ly);
+  if(local_dest) {
+    lx = x_dest;
+    ly = y_dest;
+  } else {
+    global_to_local(x_dest-current_x,y_dest-current_y,current_a,lx,ly);
+  }
+  if(ball_offset) {
+    lx += BALL_X_OFFSET;
+    ly += BALL_Y_OFFSET;
+  }
   double a = atan2(ly,lx);
   Serial.print("SDFR:O");
   if(current_left_p || current_right_p){
@@ -251,10 +269,12 @@ void SFDRRobot::report_heading() const {
   Serial.print(current_y);
   Serial.print(", a = ");
   Serial.print(current_a);
-  Serial.print(" heading to x = ");
+  if(!local_dest) {
+    Serial.print(" heading to x = ");
   Serial.print(x_dest);
   Serial.print(", y = ");
   Serial.print(y_dest);
+  }
   Serial.print(", in mode = ");
   Serial.print(mode_dest);
   Serial.print(" (at lx = ");
