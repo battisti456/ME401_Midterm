@@ -1,3 +1,17 @@
+/*Problems noted from match:
+ * Robot didn't avoid the walls well enough in healthy mode.
+ * robot too big.
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ * 
+ */
+
+
+
 #include "IRSensor.h"
 #include "RadioRobot.h"
 

@@ -10,7 +10,7 @@
 #define ZERO_A_INCREMENT 0.10
 #define ZERO_ANGLE 5.5//angle
 #define ANGLE_RANGE 2.5
-#define MAX_OFFSET 1.05
+#define MAX_OFFSET 2.2
 
 #define A_MIN (ZERO_ANGLE-ANGLE_RANGE-MAX_OFFSET)
 #define A_MAX (ZERO_ANGLE-MAX_OFFSET)
@@ -86,6 +86,9 @@ void Radar::find_object(bool& found, double& lx, double& ly){
     Serial.print("not ");
     found = false;
   }
-  Serial.println("recommend persuit");
+  Serial.print("recommend persuit at lx =  ");
+  Serial.print(lx);
+  Serial.print(", ly = ");
+  Serial.print(ly);
   motor.set_angle(A_MIN);
 }

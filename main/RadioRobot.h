@@ -46,7 +46,7 @@ enum StateMachineState {
 class RadioRobot: public SFDRRobot {
   private:
   RobotPose current_pose;
-  StateMachineState current_state = HEALTHY;
+  StateMachineState current_state = ZOMBIE;
 
   Switch tl_coll, tr_coll, bl_coll, br_coll;
 
@@ -56,7 +56,6 @@ class RadioRobot: public SFDRRobot {
 
   Radar radar;
 
-  int last_scan_ms = 0;
   public:
   void setup();
   void update(int us);
@@ -105,7 +104,7 @@ void RadioRobot::run() {
   //reverse from collisions. couldn't get interrupt to work, but that wasn't mentioned in tthe requirements
   Serial.println("Applying collision behavior");
   collision_behavior();
-  //update_state();
+  update_state();
 
   //update position info
   Serial.print("Update position using ");
@@ -263,13 +262,17 @@ void RadioRobot::healthy_behavior() {
   }
 }
 void RadioRobot::zombie_behavior() {
+  static int last_t = 0;
+  Serial.println("Zombie behavior");
   int t= millis();
-  if(t-last_scan_ms > ZOMBIE_RUN_MS) {//so scan is not done too often
-    last_scan_ms = t;
+  if(t-last_t > ZOMBIE_RUN_MS) {//so scan is not done too often
+    Serial.println("heyyyyyyyy");
+    last_t = t;
     
     turn_off();//during scan
     bool found;
     double lx, ly;
+    Serial.println("Scanning for object");
     radar.find_object(found,lx,ly);
     if(found) {
       set_destination(lx,ly,'a',true,false);
